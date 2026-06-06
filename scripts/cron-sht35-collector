@@ -1,0 +1,17 @@
+# SHT35専用監視データ収集 - 5分間隔 (シンプル・高品質データ専用)
+# DHT22時代のハズレ値問題を完全解決したSHT35向け最適化cron設定
+#
+# 特徴:
+# - 5分間隔収集 (SHT35安定データのため1分間隔不要)
+# - ハズレ値除外システム完全削除
+# - 直接JSONファイル出力のシンプル設計
+#
+# インストール方法:
+#   sudo cp systemd/cron-sht35-collector /etc/cron.d/
+#   sudo systemctl reload crond  (または sudo service cron reload)
+
+# 5分ごとにSHT35専用データ収集実行
+*/5 * * * * pi cd /path/to/raspberry-pi-dashboard && /usr/bin/python3 scripts/monitoring_collector_sht35.py >> logs/sht35_collector.log 2>&1
+
+# 毎時0分にログローテーション（月1回程度）
+0 */6 * * * pi find /path/to/raspberry-pi-dashboard/logs -name "sht35_collector.log" -size +10M -exec mv {} {}.$(date +\%Y\%m\%d_\%H\%M) \; -exec touch /path/to/raspberry-pi-dashboard/logs/sht35_collector.log \;

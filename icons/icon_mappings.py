@@ -1,0 +1,27 @@
+"""Material Icons コードポイントマッピング"""
+
+MATERIAL_ICONS = {
+    "thermostat": "",
+    "device_thermostat": "",
+    "thermostat_auto": "",
+    "water_drop": "",
+    "opacity": "",
+    "water": "",
+    "humidity_percentage": "",
+    "sentiment_very_satisfied": "",
+    "sentiment_satisfied": "",
+    "sentiment_neutral": "",
+    "sentiment_dissatisfied": "",
+    "sentiment_very_dissatisfied": "",
+    "mood": "",
+    "mood_bad": "",
+    "sensors": "",
+    "dashboard": "",
+    "speed": "",
+    "air": "\eefd8",
+    "wb_sunny": "",
+    "wb_cloudy": "",
+    "cloud": "",
+    "ac_unit": "",
+    "whatshot": "",
+}

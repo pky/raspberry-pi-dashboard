@@ -1,0 +1,14 @@
+[Unit]
+Description=SSD Weekly Health Test Timer
+Requires=ssd-weekly-health-test.service
+
+[Timer]
+# 毎週日曜日の午前2時に実行
+OnCalendar=Sun 02:00
+# システム起動時に過去のスケジュールをキャッチアップ
+Persistent=true
+# 初回は5分後に実行（テスト用）
+OnBootSec=5min
+
+[Install]
+WantedBy=timers.target

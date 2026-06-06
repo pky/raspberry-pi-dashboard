@@ -1,0 +1,85 @@
+{
+  "valid_sensor_readings": [
+    {
+      "timestamp": "2024-08-24T10:00:00",
+      "temperature": 25.5,
+      "humidity": 60.0,
+      "co2": 400
+    },
+    {
+      "timestamp": "2024-08-24T10:01:00", 
+      "temperature": 26.0,
+      "humidity": 58.0,
+      "co2": 420
+    },
+    {
+      "timestamp": "2024-08-24T10:02:00",
+      "temperature": 25.8,
+      "humidity": 59.0,
+      "co2": 410
+    }
+  ],
+  "invalid_sensor_readings": [
+    {
+      "timestamp": "2024-08-24T10:03:00",
+      "temperature": -50.0,
+      "humidity": 120.0,
+      "co2": 50000
+    },
+    {
+      "timestamp": "2024-08-24T10:04:00",
+      "temperature": 100.0,
+      "humidity": -10.0,
+      "co2": 0
+    }
+  ],
+  "smart_averaging_test_data": [
+    {
+      "input": [400, 405, 410, 8000, 415],
+      "expected_average": 407.5,
+      "expected_quality_score": 0.8,
+      "anomaly_count": 1
+    },
+    {
+      "input": [400, 420, 410, 430, 425],
+      "expected_average": 417.0,
+      "expected_quality_score": 0.95,
+      "anomaly_count": 0
+    }
+  ],
+  "api_response_templates": {
+    "sensors_success": {
+      "temperature": 25.5,
+      "humidity": 60.0,
+      "co2": 400,
+      "status": "success",
+      "timestamp": "2024-08-24T10:00:00Z"
+    },
+    "chart_data_success": {
+      "labels": ["10:00", "10:01", "10:02"],
+      "datasets": [
+        {
+          "label": "Temperature (°C)",
+          "data": [25.5, 26.0, 25.8],
+          "borderColor": "#ff6384"
+        },
+        {
+          "label": "Humidity (%)",
+          "data": [60.0, 58.0, 59.0],
+          "borderColor": "#36a2eb"
+        },
+        {
+          "label": "CO2 (ppm)",
+          "data": [400, 420, 410],
+          "borderColor": "#4bc0c0"
+        }
+      ]
+    },
+    "system_status_success": {
+      "api_server": "running",
+      "sensor_status": "connected",
+      "last_reading": "2024-08-24T10:00:00Z",
+      "uptime": "24h:30m"
+    }
+  }
+}

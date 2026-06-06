@@ -1,0 +1,65 @@
+# Environment variables - contains secrets
+.env
+.env.backup
+
+# Credentials - security sensitive
+credentials/*.json
+credentials/token.json*
+credentials/nas_credentials
+
+# Cache files
+cache/
+
+# Logs
+logs/
+*.log
+dashboard.log
+
+# Temporary files
+*.tmp
+*.lock
+*.swp
+monitoring_buffer.json
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+*.so
+*.egg-info/
+.coverage
+.pytest_cache/
+
+# Virtual environments
+.venv/
+venv*/
+
+# Runtime generated
+reports/
+test_logs/
+backup/
+static/data/metrics.json
+
+# Tool configs (local only)
+.serena/
+.claude/
+
+# Local environment-specific scripts (not for public)
+local/
+
+# IDE
+.vscode/
+.idea/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Backup files
+*_backup*
+*_old*
+
+# Exception: screenshots in docs/
+!docs/screenshot*.png

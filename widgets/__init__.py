@@ -1,0 +1,1 @@
+# Weather Detail Widgets Package

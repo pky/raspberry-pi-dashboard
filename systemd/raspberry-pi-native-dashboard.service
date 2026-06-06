@@ -1,0 +1,39 @@
+[Unit]
+Description=Raspberry Pi Native PyQt5 Dashboard
+After=graphical.target display-manager.service network.target
+Wants=graphical.target display-manager.service
+Requires=display-manager.service
+
+[Service]
+Type=simple
+User=pi
+Group=pi
+# タッチパネル側に固定（XWAYLAND1: 1024x600）
+Environment=DISPLAY=:0.0
+Environment=QT_QPA_PLATFORM=xcb
+Environment=XDG_RUNTIME_DIR=/run/user/1000
+# タッチパネル特有の設定
+Environment=QT_SCALE_FACTOR=1
+Environment=QT_AUTO_SCREEN_SCALE_FACTOR=0
+# X11ディスプレイの幾何学的配置を明示
+Environment=GEOMETRY=1024x600+0+0
+# CO2センサー（MH-Z19E）UART通信用
+Environment=CO2_SENSOR_PORT=/dev/serial0
+Environment=CO2_SENSOR_ENABLED=true
+WorkingDirectory=/path/to/raspberry-pi-dashboard
+# X11が完全に起動するまで待機（デスクトップセッションも確認）
+ExecStartPre=/bin/bash -c 'echo "Waiting for X11 and desktop session..."; for i in {1..120}; do if xset -display :0 q >/dev/null 2>&1 && pgrep -f lxsession >/dev/null 2>&1; then echo "X11 and desktop ready after $i seconds"; exit 0; fi; echo "Waiting... ($i/120)"; sleep 1; done; echo "Timeout waiting for X11/desktop"; exit 1'
+# ダッシュボード起動時にディスプレイ指定を強制 + 正しい解像度設定
+ExecStart=/bin/bash -c 'export DISPLAY=:0.0 && xrandr --newmode "1024x600_60.00" 49.00 1024 1072 1168 1312 600 603 613 624 -hsync +vsync 2>/dev/null || true && xrandr --addmode HDMI-1 "1024x600_60.00" 2>/dev/null || true && xrandr --output HDMI-1 --mode "1024x600_60.00" 2>/dev/null || true && sleep 1 && /usr/bin/python3 dashboard.py'
+ExecStop=/bin/kill -TERM $MAINPID
+TimeoutStopSec=10
+KillMode=mixed
+KillSignal=SIGTERM
+Restart=always
+RestartSec=10
+TimeoutStartSec=180
+# CO2センサー用デバイスアクセス権限 + タッチスクリーン対応
+#SupplementaryGroups=dialout tty input
+
+[Install]
+WantedBy=graphical.target

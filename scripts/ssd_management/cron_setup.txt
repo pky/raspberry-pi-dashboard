@@ -1,0 +1,27 @@
+# M.2 SSD SMART監視システム - Cronジョブ設定
+
+## 週1回のSSD健康テスト（毎週日曜日 午前2時）
+0 2 * * 0 /path/to/raspberry-pi-dashboard/scripts/ssd_management/ssd_weekly_test.sh
+
+## データ同期（毎日午前3時）
+0 3 * * * /path/to/raspberry-pi-dashboard/scripts/ssd_management/sync_cron.sh
+
+# 設定方法:
+# 1. crontabエディタを開く
+#    crontab -e
+#
+# 2. 上記の行を追加して保存
+#
+# 3. 設定確認
+#    crontab -l
+#
+# 4. cronサービス再起動（必要に応じて）
+#    sudo systemctl restart cron
+
+# ログファイル確認方法:
+# - SSD健康テストログ: /path/to/raspberry-pi-dashboard/logs/ssd_weekly_test.log
+# - データ同期ログ: /path/to/raspberry-pi-dashboard/logs/data_sync_cron.log
+
+# 手動実行テスト:
+# - 週次健康テスト: /path/to/raspberry-pi-dashboard/scripts/ssd_management/ssd_weekly_test.sh
+# - データ同期: /path/to/raspberry-pi-dashboard/scripts/ssd_management/sync_cron.sh

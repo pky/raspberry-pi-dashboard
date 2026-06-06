@@ -1,0 +1,762 @@
+/* Raspberry Pi Dashboard CSS */
+/* タッチパネル最適化されたレスポンシブデザイン */
+
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    font-family: 'Noto Sans JP', 'Inter', 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: #333;
+    height: 600px;
+    overflow: hidden;
+    margin: 0;
+    padding: 0;
+}
+
+.dashboard-container {
+    display: flex;
+    flex-direction: column;
+    height: 600px;
+    max-width: 1024px;
+    margin: 0 auto;
+    padding: 8px;
+}
+
+/* メインコンテンツ */
+.dashboard-main {
+    flex: 1;
+    display: grid;
+    grid-template-columns: 2fr 1fr;
+    gap: 15px;
+    height: calc(600px - 16px);
+}
+
+/* カレンダーセクション */
+.calendar-section {
+    background: transparent; /* 背景を透明に */
+    border-radius: 15px;
+    padding: 0px 20px 20px 20px; /* 上のパディングを削除 */
+    box-shadow: none; /* シャドウも削除 */
+    overflow: hidden; /* ヘッダーの角丸を適用 */
+}
+
+.calendar-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 15px;
+    position: relative;
+    /* ヘッダー全体にガラスモーフィズム背景を追加（背景のグラデーションが見える） */
+    background: rgba(255, 255, 255, 0.05);
+    backdrop-filter: blur(15px);
+    border-radius: 15px 15px 0 0; /* 上部のみ角丸 */
+    padding: 20px;
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    margin: 0 -20px 15px -20px; /* カレンダーセクションの幅に合わせる */
+}
+
+/* カレンダーヘッダー内の時刻表示 */
+.calendar-header .current-time-display {
+    text-align: center;
+    background: transparent;
+    border-radius: 0;
+    padding: 0;
+    border: none;
+    margin: 0 15px;
+    min-width: 140px;
+}
+
+.calendar-header .time-main {
+    font-family: 'Comfortaa', 'Quicksand', sans-serif;
+    font-size: 1.8rem;
+    font-weight: 700;
+    line-height: 1;
+    color: white;
+    letter-spacing: 0.05em;
+    text-shadow: 0 2px 4px rgba(0, 0, 0, 0.5);
+}
+
+.calendar-header .date-main {
+    font-family: 'Quicksand', 'Noto Sans JP', sans-serif;
+    font-size: 1.1rem;
+    font-weight: 600;
+    margin-top: 3px;
+    color: rgba(255, 255, 255, 0.95);
+    letter-spacing: 0.03em;
+    text-shadow: 0 1px 3px rgba(0, 0, 0, 0.4);
+}
+
+.calendar-title-container {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 5px;
+}
+
+.calendar-title {
+    font-family: 'Comfortaa', 'Quicksand', sans-serif;
+    font-size: 1.3rem;
+    color: white;
+    font-weight: 600;
+    margin: 0;
+    letter-spacing: 0.03em;
+    text-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
+}
+
+.status-indicator {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.status-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: #e53e3e;
+    animation: pulse 2s infinite;
+}
+
+.status-dot.connected {
+    background: #38a169;
+}
+
+.status-text {
+    font-size: 0.9rem;
+    color: rgba(255, 255, 255, 0.9);
+    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
+    font-weight: 500;
+}
+
+.nav-button {
+    font-family: 'Comfortaa', 'Quicksand', sans-serif;
+    background: #4299e1;
+    color: white;
+    border: none;
+    border-radius: 50%;
+    width: 40px;
+    height: 40px;
+    font-size: 1.2rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.nav-button:hover {
+    background: #3182ce;
+    transform: scale(1.05);
+}
+
+.nav-button:active {
+    transform: scale(0.95);
+}
+
+/* 月替えボタン連続押下対策 - 読み込み中スタイル */
+.nav-button.loading {
+    background: #a0aec0 !important;
+    color: #4a5568 !important;
+    cursor: not-allowed !important;
+    opacity: 0.6;
+    pointer-events: none;
+    position: relative;
+}
+
+.nav-button.loading::after {
+    content: '';
+    position: absolute;
+    width: 16px;
+    height: 16px;
+    border: 2px solid #4a5568;
+    border-top: 2px solid transparent;
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+
+.nav-button:disabled {
+    background: #a0aec0 !important;
+    color: #4a5568 !important;
+    cursor: not-allowed !important;
+    opacity: 0.6;
+    pointer-events: none;
+}
+
+/* ステータスインジケーター読み込み状態 */
+.status-indicator.loading .status-dot {
+    background: #fb923c;
+    animation: pulse 2s infinite;
+}
+
+.status-indicator.loading .status-text {
+    color: #fb923c;
+    font-weight: 600;
+}
+
+@keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.5; }
+}
+
+/* カレンダーグリッド読み込みオーバーレイ */
+.calendar-grid.loading-overlay {
+    position: relative;
+    overflow: hidden;
+}
+
+.calendar-grid.loading-overlay::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: linear-gradient(
+        90deg,
+        transparent,
+        rgba(255, 255, 255, 0.3),
+        transparent
+    );
+    animation: shimmer 1.5s infinite;
+    z-index: 1;
+    pointer-events: none;
+}
+
+@keyframes shimmer {
+    0% { transform: translateX(-100%); }
+    100% { transform: translateX(100%); }
+}
+
+/* カレンダー日付要素の読み込み状態 */
+.calendar-day {
+    transition: opacity 0.3s ease, transform 0.2s ease;
+}
+
+.calendar-grid.loading-overlay .calendar-day {
+    opacity: 0.5 !important;
+    pointer-events: none !important;
+}
+
+.calendar-grid {
+    display: grid;
+    grid-template-columns: repeat(7, 1fr);
+    gap: 2px;
+    background: rgba(255, 255, 255, 0.1);
+    backdrop-filter: blur(10px);
+    border-radius: 10px;
+    padding: 10px;
+    border: 1px solid rgba(255, 255, 255, 0.15);
+}
+
+.calendar-day {
+    background: rgba(255, 255, 255, 0.8);
+    backdrop-filter: blur(5px);
+    border-radius: 8px;
+    padding: 10px;
+    min-height: 60px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: flex-start;
+    cursor: pointer;
+    transition: all 0.2s;
+    border: 1px solid rgba(255, 255, 255, 0.3);
+}
+
+.calendar-day:hover {
+    background: #f7fafc;
+    transform: translateY(-2px);
+}
+
+.calendar-day.today {
+    background: #4299e1;
+    color: white;
+}
+
+.calendar-day.holiday,
+.calendar-day.sunday {
+    background: #fed7d7;
+    color: #c53030;
+}
+
+.calendar-day.saturday {
+    background: #bee3f8;
+    color: #2b6cb0;
+}
+
+.calendar-day.has-events {
+    border-left: 4px solid #38a169;
+}
+
+.day-number {
+    font-family: 'Comfortaa', 'Quicksand', sans-serif;
+    font-weight: 600;
+    margin-bottom: 5px;
+    letter-spacing: 0.02em;
+}
+
+.day-events {
+    font-size: 0.7rem;
+    text-align: center;
+}
+
+/* 前月・翌月の日付スタイル */
+.calendar-day.prev-month,
+.calendar-day.next-month {
+    opacity: 0.3;
+    color: #a0aec0;
+}
+
+.calendar-day.prev-month .day-number,
+.calendar-day.next-month .day-number {
+    color: #a0aec0;
+}
+
+/* 前月・翌月の土日スタイル */
+.calendar-day.prev-month.sunday,
+.calendar-day.next-month.sunday {
+    background: rgba(254, 215, 215, 0.6) !important;
+    color: rgba(197, 48, 48, 0.8) !important;
+}
+
+.calendar-day.prev-month.saturday,
+.calendar-day.next-month.saturday {
+    background: rgba(190, 227, 248, 0.6) !important;
+    color: rgba(43, 108, 176, 0.8) !important;
+}
+
+.calendar-day.prev-month.sunday .day-number,
+.calendar-day.next-month.sunday .day-number {
+    color: rgba(197, 48, 48, 0.8) !important;
+}
+
+.calendar-day.prev-month.saturday .day-number,
+.calendar-day.next-month.saturday .day-number {
+    color: rgba(43, 108, 176, 0.8) !important;
+}
+
+/* センサーセクション */
+.sensor-section {
+    background: rgba(255, 255, 255, 0.1);
+    backdrop-filter: blur(15px);
+    border-radius: 15px;
+    padding: 15px;
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+}
+
+.sensor-data {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    flex: 1;
+}
+
+.sensor-card {
+    background: rgba(255, 255, 255, 0.15);
+    backdrop-filter: blur(10px);
+    border-radius: 12px;
+    padding: 12px 12px 12px 10px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    transition: all 0.3s;
+    border-left: 4px solid transparent;
+    border: 1px solid rgba(255, 255, 255, 0.25);
+    flex: 1;
+    min-height: 65px;
+}
+
+.sensor-card:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 6px 20px rgba(0, 0, 0, 0.15);
+}
+
+.temperature-card {
+    border-left-color: #e53e3e;
+    background: linear-gradient(135deg, #fff5f5 0%, #fed7d7 20%, #ffffff 100%);
+}
+
+.humidity-card {
+    border-left-color: #3182ce;
+    background: linear-gradient(135deg, #f7faff 0%, #bee3f8 20%, #ffffff 100%);
+}
+
+.discomfort-card {
+    border-left-color: #38a169;
+    background: linear-gradient(135deg, #f0fff4 0%, #c6f6d5 20%, #ffffff 100%);
+}
+
+.co2-card {
+    border-left-color: #805ad5;
+    background: linear-gradient(135deg, #faf5ff 0%, #e9d8fd 20%, #ffffff 100%);
+}
+
+.sensor-icon {
+    font-size: 3rem;
+    width: 60px;
+    text-align: center;
+    line-height: 1;
+    font-weight: 400;
+    color: white;
+    text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+    flex-shrink: 0;
+}
+
+.sensor-icon.material-icons {
+    font-family: 'Material Icons';
+    font-weight: normal;
+    font-style: normal;
+    font-size: 3.2rem;
+    display: inline-block;
+    line-height: 1;
+    text-transform: none;
+    letter-spacing: normal;
+    word-wrap: normal;
+    white-space: nowrap;
+    direction: ltr;
+}
+
+.temperature-card .sensor-icon {
+    color: #e53e3e;
+}
+
+.humidity-card .sensor-icon {
+    color: #3182ce;
+}
+
+.discomfort-card .sensor-icon {
+    color: #38a169;
+}
+
+.co2-card .sensor-icon {
+    color: #805ad5;
+}
+
+#co2-icon {
+    transition: color 0.3s;
+}
+
+.sensor-value-wrapper {
+    display: flex;
+    align-items: baseline;
+    gap: 0.3rem;
+}
+
+.sensor-value-wrapper .sensor-value {
+    font-size: 2rem !important;
+    font-weight: bold;
+}
+
+.sensor-unit {
+    font-size: 0.9rem;
+    font-weight: 500;
+    color: rgba(255, 255, 255, 0.8);
+}
+
+.sensor-info {
+    flex: 1;
+}
+
+.sensor-label {
+    font-size: 1.3rem;
+    color: white;
+    margin-bottom: 8px;
+    font-weight: 600;
+    font-family: 'Comfortaa', 'Quicksand', 'Noto Sans JP', sans-serif;
+    text-shadow: 0 1px 3px rgba(0, 0, 0, 0.4);
+}
+
+.sensor-value {
+    font-size: 3rem;
+    font-weight: 800;
+    color: white;
+    line-height: 1;
+    text-shadow: 0 2px 4px rgba(0, 0, 0, 0.5);
+    font-family: 'Comfortaa', 'Quicksand', 'Inter', monospace;
+    letter-spacing: -0.02em;
+}
+
+.temperature-card .sensor-label {
+    color: #c53030;
+}
+
+.temperature-card .sensor-value {
+    color: #c53030;
+}
+
+.humidity-card .sensor-label {
+    color: #2c5282;
+}
+
+.humidity-card .sensor-value {
+    color: #2c5282;
+}
+
+.discomfort-card .sensor-label {
+    color: #2f855a;
+}
+
+.discomfort-card .sensor-value {
+    color: #2f855a;
+}
+
+.co2-card .sensor-label {
+    color: #553c9a;
+}
+
+.co2-card .sensor-value {
+    color: #553c9a;
+}
+
+.co2-card .sensor-level {
+    font-weight: 600;
+    transition: color 0.3s;
+}
+
+/* CO2警告メッセージ - コンパクト版 */
+.co2-warning-message {
+    margin: 8px 0;
+    padding: 8px 12px;
+    border-radius: 6px;
+    text-align: center;
+    font-weight: 500;
+    font-size: 0.9rem;
+    line-height: 1.2;
+    max-height: 40px;
+    overflow: hidden;
+    animation: pulse 2s infinite;
+}
+
+@keyframes pulse {
+    0% { opacity: 1; }
+    50% { opacity: 0.8; }
+    100% { opacity: 1; }
+}
+
+.sensor-level {
+    font-size: 1.0rem;
+    color: #718096;
+    margin-top: 6px;
+    font-weight: 500;
+}
+
+.sensor-footer {
+    margin-top: 15px;
+    padding-top: 15px;
+    border-top: 1px solid rgba(255, 255, 255, 0.2);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 0.8rem;
+    color: rgba(255, 255, 255, 0.8);
+    font-family: 'Quicksand', 'Noto Sans JP', sans-serif;
+}
+
+.sensor-timestamp {
+    font-weight: 500;
+    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
+}
+
+.version-info {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 2px;
+    font-size: 0.75rem;
+    color: rgba(255, 255, 255, 0.8);
+    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
+    font-weight: 500;
+}
+
+
+/* アニメーション */
+@keyframes pulse {
+    0% {
+        opacity: 1;
+    }
+    50% {
+        opacity: 0.5;
+    }
+    100% {
+        opacity: 1;
+    }
+}
+
+/* レスポンシブデザイン */
+@media (max-width: 768px) {
+    .dashboard-main {
+        grid-template-columns: 1fr;
+    }
+    
+    .dashboard-header h1 {
+        font-size: 1.4rem;
+    }
+    
+    .calendar-grid {
+        gap: 1px;
+    }
+    
+    .calendar-day {
+        min-height: 50px;
+        padding: 8px;
+    }
+    
+    .sensor-card {
+        padding: 12px;
+    }
+    
+    .sensor-value {
+        font-size: 1.5rem;
+    }
+}
+
+/* タッチデバイス最適化 */
+@media (hover: none) and (pointer: coarse) {
+    .nav-button {
+        width: 50px;
+        height: 50px;
+        font-size: 1.4rem;
+    }
+    
+    .calendar-day {
+        min-height: 70px;
+        padding: 12px;
+    }
+    
+    .sensor-card {
+        padding: 18px;
+    }
+}
+
+/* ローディング状態 */
+.loading {
+    opacity: 0.6;
+    pointer-events: none;
+}
+
+.loading::after {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 20px;
+    height: 20px;
+    margin: -10px 0 0 -10px;
+    border: 2px solid #4299e1;
+    border-top: 2px solid transparent;
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+
+
+
+/* 管理機能セクション */
+.management-section {
+    background: rgba(255, 255, 255, 0.95);
+    border-radius: 15px;
+    padding: 15px 20px;
+    margin-top: 10px;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+}
+
+.management-panel h3 {
+    color: #2d3748;
+    font-size: 1.1rem;
+    font-weight: 600;
+    margin-bottom: 12px;
+    text-align: center;
+}
+
+.management-buttons {
+    display: flex;
+    gap: 10px;
+    justify-content: center;
+}
+
+.management-btn {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 12px 16px;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    text-decoration: none;
+    border-radius: 10px;
+    transition: all 0.3s ease;
+    min-width: 160px;
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+}
+
+.management-btn:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+    color: white;
+    text-decoration: none;
+}
+
+.management-btn .material-icons {
+    font-size: 20px;
+    opacity: 0.9;
+}
+
+.btn-text {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+}
+
+.btn-title {
+    font-weight: 600;
+    font-size: 0.9rem;
+    line-height: 1.2;
+}
+
+.btn-desc {
+    font-size: 0.75rem;
+    opacity: 0.8;
+    line-height: 1.1;
+    margin-top: 2px;
+}
+
+.backup-btn {
+    background: linear-gradient(135deg, #48bb78 0%, #38a169 100%);
+}
+
+.external-backup-btn {
+    background: linear-gradient(135deg, #ed8936 0%, #dd6b20 100%);
+}
+
+.monitor-btn {
+    background: linear-gradient(135deg, #4299e1 0%, #3182ce 100%);
+}
+
+/* モバイル対応 */
+@media (max-width: 768px) {
+    .management-buttons {
+        flex-direction: column;
+        align-items: center;
+    }
+    
+    .management-btn {
+        width: 100%;
+        max-width: 300px;
+    }
+}

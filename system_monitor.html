@@ -1,0 +1,1698 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Raspberry Pi Dashboard - システム監視 - CACHE_BUST_20250820_1937</title>
+    <style>
+        body {
+            font-family: 'Arial', sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            margin: 0;
+            padding: 20px;
+            min-height: 100vh;
+        }
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 15px;
+            padding: 30px;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+        }
+        .header {
+            text-align: center;
+            margin-bottom: 30px;
+            color: #333;
+        }
+        .header h1 {
+            margin: 0;
+            font-size: 2.5rem;
+            font-weight: 300;
+        }
+        .subtitle {
+            color: #666;
+            margin-top: 10px;
+            font-size: 1.1rem;
+        }
+        
+        .navigation-buttons {
+            display: flex;
+            justify-content: center;
+            gap: 15px;
+            margin-top: 20px;
+        }
+        
+        .nav-btn {
+            display: inline-flex;
+            align-items: center;
+            padding: 10px 20px;
+            background: #3498db;
+            color: white;
+            text-decoration: none;
+            border-radius: 8px;
+            font-weight: 500;
+            transition: all 0.3s ease;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+        }
+        
+        .nav-btn:hover {
+            background: #2980b9;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 10px rgba(0,0,0,0.2);
+            color: white;
+            text-decoration: none;
+        }
+        
+        .backup-btn {
+            background: #27ae60;
+        }
+        
+        .backup-btn:hover {
+            background: #219a52;
+        }
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+        .card {
+            background: white;
+            border-radius: 12px;
+            padding: 20px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+            border: 1px solid #e1e5e9;
+        }
+        .card-title {
+            font-size: 1.4rem;
+            font-weight: 600;
+            margin-bottom: 15px;
+            color: #2c3e50;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .card-content {
+            font-size: 1rem;
+            line-height: 1.6;
+        }
+        .status-indicator {
+            display: inline-block;
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            margin-right: 8px;
+        }
+        .status-healthy { background-color: #27ae60; }
+        .status-warning { background-color: #f39c12; }
+        .status-critical { background-color: #e74c3c; }
+        .status-unknown { background-color: #95a5a6; }
+        
+        .metric {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 10px;
+            padding: 8px 0;
+            border-bottom: 1px solid #ecf0f1;
+        }
+        .metric:last-child {
+            border-bottom: none;
+        }
+        .metric-label {
+            font-weight: 500;
+            color: #34495e;
+        }
+        .metric-value {
+            font-weight: 600;
+            color: #2c3e50;
+        }
+        
+        .progress-bar {
+            width: 100%;
+            height: 8px;
+            background-color: #ecf0f1;
+            border-radius: 4px;
+            overflow: hidden;
+            margin-top: 5px;
+        }
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #27ae60 0%, #f39c12 70%, #e74c3c 90%);
+            transition: width 0.3s ease;
+        }
+        
+        .log-container {
+            background-color: #2c3e50;
+            color: #ecf0f1;
+            border-radius: 8px;
+            padding: 15px;
+            font-family: 'Courier New', monospace;
+            font-size: 0.9rem;
+            max-height: 300px;
+            overflow-y: auto;
+            white-space: pre-wrap;
+        }
+        
+        .refresh-info {
+            text-align: center;
+            color: #7f8c8d;
+            margin-top: 20px;
+            font-size: 0.9rem;
+        }
+        
+        .action-buttons {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+            justify-content: center;
+            flex-wrap: wrap;
+        }
+        .btn {
+            background: linear-gradient(135deg, #3498db, #2980b9);
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 0.9rem;
+            font-weight: 500;
+            transition: all 0.3s;
+        }
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(52, 152, 219, 0.4);
+        }
+        .btn:active {
+            transform: translateY(0);
+        }
+        
+        .loading {
+            opacity: 0.6;
+            pointer-events: none;
+        }
+        
+        @keyframes pulse {
+            0% { opacity: 1; }
+            50% { opacity: 0.6; }
+            100% { opacity: 1; }
+        }
+        .pulsing {
+            animation: pulse 1.5s infinite;
+        }
+        
+        /* 監視グラフセクション */
+        .monitoring-charts-section {
+            background: white;
+            border-radius: 12px;
+            padding: 25px;
+            margin: 20px 0;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+            border: 1px solid #e1e5e9;
+        }
+        
+        .charts-header {
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+            margin-bottom: 25px;
+            text-align: center;
+        }
+        
+        .time-range-selector {
+            display: flex;
+            gap: 8px;
+            justify-content: center;
+            flex-wrap: wrap;
+        }
+        
+        .time-range-btn {
+            font-size: 0.9rem;
+            padding: 8px 16px;
+            min-width: 80px;
+            transition: all 0.3s ease;
+        }
+        
+        .time-range-btn.active {
+            background: linear-gradient(135deg, #27ae60, #2ecc71);
+            color: white;
+            transform: scale(1.05);
+            box-shadow: 0 4px 12px rgba(46, 204, 113, 0.4);
+        }
+        
+        .charts-controls {
+            display: flex;
+            gap: 10px;
+            justify-content: center;
+            flex-wrap: wrap;
+        }
+        
+        .charts-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
+            gap: 20px;
+            margin-bottom: 20px;
+        }
+        
+        .chart-container {
+            background: #f8f9fa;
+            border-radius: 8px;
+            padding: 15px;
+            border: 1px solid #e9ecef;
+            position: relative;
+        }
+        
+        .chart-container canvas {
+            width: 100% !important;
+            height: 200px !important;
+            max-width: 100%;
+            max-height: 200px;
+            display: block;
+        }
+        
+        .chart-time-btn {
+            background: #ecf0f1;
+            color: #2c3e50;
+            border: 1px solid #bdc3c7;
+            border-radius: 5px;
+            padding: 8px 16px;
+            cursor: pointer;
+            font-size: 0.9rem;
+            transition: all 0.3s;
+        }
+        
+        .chart-time-btn:hover {
+            background: #d5dbdb;
+        }
+        
+        .chart-time-btn.active {
+            background: linear-gradient(135deg, #3498db, #2980b9);
+            color: white;
+            border-color: #2980b9;
+        }
+        
+        .chart-title {
+            font-size: 1.1rem;
+            font-weight: 600;
+            color: #2c3e50;
+            margin-bottom: 10px;
+            text-align: center;
+        }
+        
+        .warning-panel {
+            background: linear-gradient(135deg, #ff6b6b, #ff8e8e);
+            color: white;
+            padding: 8px 12px;
+            border-radius: 6px;
+            margin-bottom: 10px;
+            font-size: 0.9rem;
+            font-weight: 500;
+            text-align: center;
+            animation: warning-pulse 1.5s ease-in-out infinite alternate;
+        }
+        
+        @keyframes warning-pulse {
+            from { opacity: 0.8; }
+            to { opacity: 1; }
+        }
+        
+        .charts-footer {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding-top: 15px;
+            border-top: 1px solid #e9ecef;
+            font-size: 0.85rem;
+            color: #6c757d;
+            flex-wrap: wrap;
+            gap: 10px;
+        }
+        
+        .performance-info, .data-coverage {
+            flex: 1;
+            text-align: center;
+        }
+        
+        /* レスポンシブデザイン */
+        @media (max-width: 1200px) {
+            .charts-grid {
+                grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
+            }
+        }
+        
+        @media (max-width: 768px) {
+            .container {
+                padding: 15px;
+            }
+            
+            .monitoring-charts-section {
+                padding: 15px;
+            }
+            
+            .charts-header {
+                gap: 10px;
+            }
+            
+            .time-range-selector {
+                gap: 5px;
+            }
+            
+            .time-range-btn {
+                font-size: 0.8rem;
+                padding: 6px 12px;
+                min-width: 65px;
+            }
+            
+            .charts-grid {
+                grid-template-columns: 1fr;
+                gap: 15px;
+            }
+            
+            .chart-container {
+                padding: 10px;
+            }
+            
+            .chart-title {
+                font-size: 1rem;
+            }
+            
+            .charts-footer {
+                flex-direction: column;
+                text-align: center;
+                gap: 5px;
+            }
+            
+            .performance-info, .data-coverage {
+                font-size: 0.8rem;
+            }
+        }
+        
+        /* iPad対応 (タブレット) */
+        @media (min-width: 769px) and (max-width: 1024px) {
+            .charts-grid {
+                grid-template-columns: repeat(2, 1fr);
+            }
+            
+            .time-range-btn {
+                min-width: 75px;
+                padding: 8px 14px;
+            }
+            
+            .chart-container {
+                padding: 12px;
+            }
+        }
+        
+        /* Mac・デスクトップ対応 */
+        @media (min-width: 1025px) {
+            .charts-grid {
+                grid-template-columns: repeat(2, 1fr);
+            }
+            
+            .time-range-btn:hover {
+                transform: translateY(-1px);
+                box-shadow: 0 3px 8px rgba(52, 152, 219, 0.3);
+            }
+            
+            .chart-container:hover {
+                box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+                transform: translateY(-1px);
+                transition: all 0.3s ease;
+            }
+        }
+        
+        /* 高解像度ディスプレイ対応 */
+        @media (-webkit-min-device-pixel-ratio: 2), (min-resolution: 192dpi) {
+            .chart-container canvas {
+                image-rendering: -webkit-optimize-contrast;
+                image-rendering: crisp-edges;
+            }
+        }
+        
+        /* システム診断パネル */
+        .diagnostic-item {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 8px;
+            padding: 4px 0;
+            border-bottom: 1px solid #e9ecef;
+        }
+        
+        .diagnostic-label {
+            font-weight: 500;
+            color: #495057;
+        }
+        
+        .diagnostic-status {
+            font-weight: 600;
+        }
+        
+        .diagnostic-status.success { color: #28a745; }
+        .diagnostic-status.warning { color: #ffc107; }
+        .diagnostic-status.error { color: #dc3545; }
+        .diagnostic-status.info { color: #17a2b8; }
+        
+        #overall-status.healthy { color: #28a745; }
+        #overall-status.warning { color: #ffc107; }
+        #overall-status.critical { color: #dc3545; }
+    </style>
+    
+    <!-- Chart.js CDN - より安定したバージョンに変更 -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@3.9.1/dist/chart.min.js"></script>
+    
+    <!-- 外部シンプルチャートシステム読み込み -->
+    <script src="/static/js/simple_charts.js"></script>
+    
+    <!-- Chart.js読み込み確認スクリプト -->
+    <script>
+        console.log('Chart.js status:', typeof Chart !== 'undefined' ? 'Loaded' : 'Not loaded');
+        if (typeof Chart !== 'undefined') {
+            console.log('Chart.js version:', Chart.version);
+        }
+    </script>
+</head>
+<body>
+    <!-- CACHE_BUST: 2025-08-20 19:37 - INLINE_CHARTS_SYSTEM -->
+    <div class="container">
+        <div class="header">
+            <h1>🖥️ Raspberry Pi システム監視</h1>
+            <div class="subtitle">リアルタイム監視・テスト・ログ管理</div>
+            <div class="navigation-buttons" style="margin-top: 20px;">
+                <a href="/" class="nav-btn home-btn">🏠 ホーム</a>
+                <a href="/backup" class="nav-btn backup-btn">💾 バックアップ管理</a>
+            </div>
+        </div>
+        
+        <div class="action-buttons">
+            <button class="btn" onclick="refreshAllData()">🔄 全体更新</button>
+            <button class="btn" onclick="runTests()">🧪 テスト実行</button>
+            <button class="btn" onclick="runStabilityTest()">📊 安定性テスト</button>
+            <button class="btn" onclick="runSSDHealthTest()">💿 SSD健康テスト</button>
+            <button class="btn" onclick="testCachePriority()">📅 キャッシュ優先テスト</button>
+            <button class="btn" onclick="clearLogs()">🗑️ ログクリア</button>
+        </div>
+        
+        <div class="grid">
+            <div class="card">
+                <div class="card-title">
+                    🏥 システムヘルス
+                    <span id="health-status" class="status-indicator status-unknown"></span>
+                </div>
+                <div class="card-content">
+                    <div id="health-message">読み込み中...</div>
+                    <div id="health-details"></div>
+                </div>
+            </div>
+            
+            <div class="card">
+                <div class="card-title">💻 CPU使用率</div>
+                <div class="card-content">
+                    <div class="metric">
+                        <span class="metric-label">現在の使用率</span>
+                        <span class="metric-value" id="cpu-usage">--%</span>
+                    </div>
+                    <div class="progress-bar">
+                        <div class="progress-fill" id="cpu-progress" style="width: 0%"></div>
+                    </div>
+                    <div class="metric">
+                        <span class="metric-label">ロードアベレージ</span>
+                        <span class="metric-value" id="load-average">--</span>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="card">
+                <div class="card-title">🧠 メモリ使用量</div>
+                <div class="card-content">
+                    <div class="metric">
+                        <span class="metric-label">使用率</span>
+                        <span class="metric-value" id="memory-usage">--%</span>
+                    </div>
+                    <div class="progress-bar">
+                        <div class="progress-fill" id="memory-progress" style="width: 0%"></div>
+                    </div>
+                    <div class="metric">
+                        <span class="metric-label">利用可能容量</span>
+                        <span class="metric-value" id="memory-available">-- MB</span>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="card">
+                <div class="card-title">💾 ディスク使用量</div>
+                <div class="card-content">
+                    <div class="metric">
+                        <span class="metric-label">使用率</span>
+                        <span class="metric-value" id="disk-usage">--%</span>
+                    </div>
+                    <div class="progress-bar">
+                        <div class="progress-fill" id="disk-progress" style="width: 0%"></div>
+                    </div>
+                    <div class="metric">
+                        <span class="metric-label">空き容量</span>
+                        <span class="metric-value" id="disk-free">-- GB</span>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="card">
+                <div class="card-title">🌡️ システム温度</div>
+                <div class="card-content">
+                    <div class="metric">
+                        <span class="metric-label">CPU温度</span>
+                        <span class="metric-value" id="temperature">--°C</span>
+                    </div>
+                    <div class="metric">
+                        <span class="metric-label">稼働時間</span>
+                        <span class="metric-value" id="uptime">--</span>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="card">
+                <div class="card-title">🧪 最新テスト結果</div>
+                <div class="card-content">
+                    <div id="test-results">読み込み中...</div>
+                </div>
+            </div>
+            
+            <div class="card">
+                <div class="card-title">
+                    💿 M.2 SSD健康状態
+                    <span id="ssd-status" class="status-indicator status-unknown"></span>
+                </div>
+                <div class="card-content">
+                    <div id="ssd-health-details">読み込み中...</div>
+                </div>
+            </div>
+            
+            <div class="card">
+                <div class="card-title">
+                    🚨 CO2アラート履歴
+                    <span id="alerts-status" class="status-indicator status-unknown"></span>
+                </div>
+                <div class="card-content">
+                    <div id="alert-history-details">読み込み中...</div>
+                </div>
+            </div>
+            
+            <div class="card">
+                <div class="card-title">
+                    📅 カレンダーキャッシュ優先システム
+                    <span id="cache-priority-status" class="status-indicator status-unknown"></span>
+                </div>
+                <div class="card-content">
+                    <div id="cache-priority-details">読み込み中...</div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- システム診断パネル -->
+        <div class="card" id="system-diagnostics" style="background: #f8f9fa; border-left: 4px solid #007bff;">
+            <div class="card-title">🔍 システム診断</div>
+            <div class="card-content">
+                <div id="diagnostics-summary" style="margin-bottom: 15px; font-weight: bold;">
+                    <span id="overall-status">システム診断中...</span>
+                </div>
+                <div id="diagnostics-details" style="font-family: monospace; font-size: 0.9rem;">
+                    <div class="diagnostic-item">
+                        <span class="diagnostic-label">グラフライブラリ:</span>
+                        <span id="chart-js-status" class="diagnostic-status">確認中...</span>
+                    </div>
+                    <div class="diagnostic-item">
+                        <span class="diagnostic-label">監視データ:</span>
+                        <span id="json-data-status" class="diagnostic-status">確認中...</span>
+                    </div>
+                    <div class="diagnostic-item">
+                        <span class="diagnostic-label">グラフ要素:</span>
+                        <span id="canvas-elements-status" class="diagnostic-status">確認中...</span>
+                    </div>
+                    <div class="diagnostic-item">
+                        <span class="diagnostic-label">グラフシステム:</span>
+                        <span id="simple-charts-init-status" class="diagnostic-status">確認中...</span>
+                    </div>
+                    <div class="diagnostic-item" id="error-item" style="display: none;">
+                        <span class="diagnostic-label">エラー:</span>
+                        <span id="last-error-status" class="diagnostic-status error">なし</span>
+                    </div>
+                </div>
+                <div id="diagnostics-actions" style="margin-top: 15px; display: none;">
+                    <button class="btn" onclick="runSystemDiagnostics()">🔄 再診断</button>
+                    <button class="btn" onclick="toggleDiagnosticsVisibility()">📊 詳細表示切替</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- 監視グラフセクション -->
+        <div class="monitoring-charts-section">
+            <div class="charts-header">
+                <div class="card-title" style="text-align: center; margin: 0;">
+                    📊 システム監視グラフ
+                </div>
+                <div class="time-range-selector">
+                    <button data-range="1h" class="btn time-range-btn active">1時間</button>
+                    <button data-range="6h" class="btn time-range-btn">6時間</button>
+                    <button data-range="12h" class="btn time-range-btn">12時間</button>
+                    <button data-range="24h" class="btn time-range-btn">24時間</button>
+                </div>
+                <div class="charts-controls">
+                    <button id="refreshBtn" class="btn">🔄 グラフ更新</button>
+                    <button class="btn" onclick="toggleAutoRefresh()">
+                        <span id="auto-refresh-label">⏸️ 自動更新停止</span>
+                    </button>
+                </div>
+            </div>
+            
+            <!-- 重複ボタン削除済み -->
+            
+            <div class="charts-grid">
+                <div class="chart-container">
+                    <div class="chart-title">💻 CPU・メモリ使用率</div>
+                    <div id="warning-panel-cpu-memory" class="warning-panel" style="display: none;"></div>
+                    <canvas id="cpuMemoryChart" width="400" height="200"></canvas>
+                </div>
+                <div class="chart-container">
+                    <div class="chart-title">🌡️ 温度</div>
+                    <div id="warning-panel-temperature" class="warning-panel" style="display: none;"></div>
+                    <canvas id="temperatureChart" width="400" height="200"></canvas>
+                </div>
+                <div class="chart-container">
+                    <div class="chart-title">🌿 湿度</div>
+                    <div id="chart-warning-panel" class="warning-panel" style="display: none;"></div>
+                    <canvas id="sensorChart" width="400" height="200"></canvas>
+                </div>
+                <div class="chart-container">
+                    <div class="chart-title">🌬️ CO2濃度</div>
+                    <div id="chart-status" style="font-size: 0.9rem; color: #666; text-align: center; margin-bottom: 10px;">データ読み込み中...</div>
+                    <canvas id="co2Chart" width="400" height="200"></canvas>
+                </div>
+            </div>
+            
+            <!-- パフォーマンス・キャッシュ情報 -->
+            <div class="charts-footer">
+                <div class="performance-info">
+                    <span id="performance-metrics">描画時間: --ms | データ取得: --ms | キャッシュヒット率: --%</span>
+                </div>
+                <div class="data-coverage">
+                    <span id="data-coverage">データ範囲: -- | ポイント数: --</span>
+                </div>
+            </div>
+        </div>
+        
+        <div class="card">
+            <div class="card-title">📜 最新ログ</div>
+            <div class="card-content">
+                <div style="margin-bottom: 10px;">
+                    <button class="btn" style="font-size: 0.8rem;" onclick="switchLog('dashboard')">ダッシュボード</button>
+                    <button class="btn" style="font-size: 0.8rem;" onclick="switchLog('error')">エラー</button>
+                    <button class="btn" style="font-size: 0.8rem;" onclick="switchLog('performance')">パフォーマンス</button>
+                </div>
+                <div class="log-container" id="log-content">ログを読み込み中...</div>
+            </div>
+        </div>
+        
+        <div class="refresh-info">
+            最終更新: <span id="last-update">--</span> | 自動更新: 30秒間隔
+        </div>
+    </div>
+
+    <script>
+        let currentLogType = 'dashboard';
+        let autoRefreshInterval;
+
+        // グローバル変数
+        let monitoringChartsManager = null;
+        let chartsAutoRefresh = true;
+        
+        // システム診断用関数
+        function runSystemDiagnostics() {
+            console.log('[SystemDiagnostics] 診断開始');
+            
+            let issues = [];
+            let warnings = [];
+            
+            // 1. Chart.js確認
+            const chartJsAvailable = typeof Chart !== 'undefined';
+            const chartJsElement = document.getElementById('chart-js-status');
+            if (chartJsAvailable) {
+                chartJsElement.textContent = '✅ 正常';
+                chartJsElement.className = 'diagnostic-status success';
+            } else {
+                chartJsElement.textContent = '❌ 読み込み失敗';
+                chartJsElement.className = 'diagnostic-status error';
+                issues.push('Chart.jsライブラリが読み込まれていません');
+            }
+            
+            // 2. Canvas要素確認
+            const canvasIds = ['cpuMemoryChart', 'temperatureChart', 'sensorChart', 'co2Chart'];
+            const foundCanvases = canvasIds.filter(id => document.getElementById(id));
+            const canvasElement = document.getElementById('canvas-elements-status');
+            if (foundCanvases.length === 4) {
+                canvasElement.textContent = '✅ 4/4 準備完了';
+                canvasElement.className = 'diagnostic-status success';
+            } else {
+                canvasElement.textContent = `⚠️ ${foundCanvases.length}/4 要素`;
+                canvasElement.className = 'diagnostic-status warning';
+                warnings.push(`グラフ要素が不足: ${4 - foundCanvases.length}個`);
+            }
+            
+            // 3. JSON取得テスト
+            testJsonAccessForDiagnostics();
+            
+            // 4. Simple Charts確認
+            const simpleChartsElement = document.getElementById('simple-charts-init-status');
+            if (window.simpleMonitoringCharts) {
+                simpleChartsElement.textContent = '✅ 初期化済み';
+                simpleChartsElement.className = 'diagnostic-status success';
+            } else {
+                simpleChartsElement.textContent = '❌ 初期化失敗';
+                simpleChartsElement.className = 'diagnostic-status error';
+                issues.push('グラフシステムが初期化されていません');
+            }
+            
+            // 総合判定
+            updateOverallStatus(issues, warnings);
+            
+            console.log('[SystemDiagnostics] 診断完了', {
+                issues: issues.length,
+                warnings: warnings.length
+            });
+        }
+        
+        function updateOverallStatus(issues, warnings) {
+            const overallStatusElement = document.getElementById('overall-status');
+            const errorItem = document.getElementById('error-item');
+            const actionsDiv = document.getElementById('diagnostics-actions');
+            
+            if (issues.length === 0 && warnings.length === 0) {
+                overallStatusElement.textContent = '✅ すべて正常';
+                overallStatusElement.className = 'healthy';
+                errorItem.style.display = 'none';
+                actionsDiv.style.display = 'none';
+            } else if (issues.length === 0) {
+                overallStatusElement.textContent = `⚠️ ${warnings.length}件の警告`;
+                overallStatusElement.className = 'warning';
+                document.getElementById('last-error-status').textContent = warnings.join(', ');
+                errorItem.style.display = 'block';
+                actionsDiv.style.display = 'block';
+            } else {
+                overallStatusElement.textContent = `❌ ${issues.length}件の問題`;
+                overallStatusElement.className = 'critical';
+                document.getElementById('last-error-status').textContent = issues.join(', ');
+                document.getElementById('last-error-status').className = 'diagnostic-status error';
+                errorItem.style.display = 'block';
+                actionsDiv.style.display = 'block';
+            }
+        }
+        
+        function toggleDiagnosticsVisibility() {
+            const details = document.getElementById('diagnostics-details');
+            if (details.style.display === 'none') {
+                details.style.display = 'block';
+            } else {
+                details.style.display = 'none';
+            }
+        }
+        
+        async function testJsonAccess() {
+            try {
+                const response = await fetch('/static/data/metrics.json?' + Date.now());
+                if (response.ok) {
+                    const data = await response.json();
+                    document.getElementById('json-data-status').textContent = `✅ OK (${data.metrics.length} points)`;
+                    console.log('JSON data loaded:', data.metrics.length, 'points');
+                } else {
+                    throw new Error(`HTTP ${response.status}`);
+                }
+            } catch (error) {
+                document.getElementById('json-data-status').textContent = `❌ ${error.message}`;
+                document.getElementById('last-error-status').textContent = error.message;
+                console.error('JSON fetch error:', error);
+            }
+        }
+        
+        async function testJsonAccessForDiagnostics() {
+            try {
+                const response = await fetch('/static/data/metrics.json?' + Date.now());
+                const jsonElement = document.getElementById('json-data-status');
+                
+                if (response.ok) {
+                    const data = await response.json();
+                    if (data.metrics && data.metrics.length > 0) {
+                        jsonElement.textContent = `✅ ${data.metrics.length}ポイント取得`;
+                        jsonElement.className = 'diagnostic-status success';
+                    } else {
+                        jsonElement.textContent = '⚠️ データなし';
+                        jsonElement.className = 'diagnostic-status warning';
+                    }
+                } else {
+                    throw new Error(`HTTP ${response.status}`);
+                }
+            } catch (error) {
+                const jsonElement = document.getElementById('json-data-status');
+                jsonElement.textContent = `❌ ${error.message}`;
+                jsonElement.className = 'diagnostic-status error';
+                console.error('JSON fetch error:', error);
+            }
+        }
+
+        // 初期化
+        document.addEventListener('DOMContentLoaded', function() {
+            console.log('=== System Monitor Page Loaded ===');
+            
+            refreshAllData();
+            startAutoRefresh();
+            
+            // システム診断実行
+            setTimeout(runSystemDiagnostics, 1000);
+            
+            // 監視チャートマネージャーの初期化 - simple_charts.jsシステム統合
+            if (window.simpleMonitoringCharts) {
+                console.log('[SystemMonitor] simple_charts.js システムが初期化済み');
+            } else {
+                console.log('[SystemMonitor] simple_charts.js システム初期化待機中...');
+                // simple_charts.jsは自動で初期化される
+            }
+        });
+
+        // 自動更新開始
+        function startAutoRefresh() {
+            autoRefreshInterval = setInterval(refreshAllData, 30000);
+        }
+
+        // 全データ更新
+        async function refreshAllData() {
+            document.body.classList.add('pulsing');
+            
+            try {
+                await Promise.all([
+                    updateHealthStatus(),
+                    updateSystemMetrics(),
+                    updateTestResults(),
+                    updateSSDHealth(),
+                    updateCachePriorityStatus(),
+                    updateAlertHistory(),
+                    updateLogs()
+                ]);
+                
+                document.getElementById('last-update').textContent = new Date().toLocaleString('ja-JP');
+            } catch (error) {
+                console.error('データ更新エラー:', error);
+            } finally {
+                document.body.classList.remove('pulsing');
+            }
+        }
+
+        // ヘルスステータス更新
+        async function updateHealthStatus() {
+            try {
+                const response = await fetch('/health');
+                const data = await response.json();
+                
+                const statusElement = document.getElementById('health-status');
+                const messageElement = document.getElementById('health-message');
+                const detailsElement = document.getElementById('health-details');
+                
+                // ステータスインジケーター更新
+                statusElement.className = `status-indicator status-${data.status}`;
+                
+                // メッセージ更新
+                messageElement.textContent = data.message || `システムは${data.status}状態です`;
+                
+                // 詳細情報更新
+                if (data.checks && data.checks.length > 0) {
+                    detailsElement.innerHTML = data.checks.map(check => 
+                        `<div class="metric">
+                            <span class="metric-label">${check.component}</span>
+                            <span class="metric-value">
+                                <span class="status-indicator status-${check.status}"></span>
+                                ${check.status}
+                            </span>
+                        </div>`
+                    ).join('');
+                }
+                
+            } catch (error) {
+                console.error('ヘルス情報取得エラー:', error);
+                document.getElementById('health-message').textContent = 'ヘルス情報の取得に失敗しました';
+            }
+        }
+
+        // システムメトリクス更新
+        async function updateSystemMetrics() {
+            try {
+                const response = await fetch('/api/system/metrics');
+                const result = await response.json();
+                console.log('システムメトリクス応答:', result); // デバッグ用
+                const data = result.data; // データはdata.dataの中にある
+                
+                // CPU
+                document.getElementById('cpu-usage').textContent = `${data.cpu_percent.toFixed(1)}%`;
+                document.getElementById('cpu-progress').style.width = `${Math.min(data.cpu_percent, 100)}%`;
+                document.getElementById('load-average').textContent = 
+                    data.load_average ? data.load_average.map(l => l.toFixed(2)).join(', ') : '--';
+                
+                // メモリ
+                document.getElementById('memory-usage').textContent = `${data.memory_percent.toFixed(1)}%`;
+                document.getElementById('memory-progress').style.width = `${Math.min(data.memory_percent, 100)}%`;
+                document.getElementById('memory-available').textContent = `${data.memory_available_mb.toFixed(0)} MB`;
+                
+                // ディスク
+                document.getElementById('disk-usage').textContent = `${data.disk_percent.toFixed(1)}%`;
+                document.getElementById('disk-progress').style.width = `${Math.min(data.disk_percent, 100)}%`;
+                document.getElementById('disk-free').textContent = `${data.disk_free_gb.toFixed(1)} GB`;
+                
+                // 温度・稼働時間
+                document.getElementById('temperature').textContent = 
+                    data.temperature ? `${data.temperature.toFixed(1)}°C` : '--°C';
+                document.getElementById('uptime').textContent = formatUptime(data.uptime_seconds);
+                
+            } catch (error) {
+                console.error('システムメトリクス取得エラー:', error);
+                // デバッグ用：エラーを画面に表示
+                document.getElementById('cpu-usage').textContent = 'エラー';
+                document.getElementById('memory-usage').textContent = 'エラー';
+                document.getElementById('disk-usage').textContent = 'エラー';
+                document.getElementById('temperature').textContent = `エラー: ${error.message}`;
+            }
+        }
+
+        // テスト結果更新
+        async function updateTestResults() {
+            try {
+                // 基本テストと安定性テスト結果を並行取得
+                const [basicResponse, stabilityResponse] = await Promise.all([
+                    fetch('/api/simple-test/results'),
+                    fetch('/api/simple-test/stability')
+                ]);
+                
+                const basicData = await basicResponse.json();
+                const stabilityData = await stabilityResponse.json();
+                
+                let html = '';
+                
+                // 基本テスト結果の表示
+                if (basicData.status !== 'not_found') {
+                    const statusColor = {
+                        'pass': '#27ae60',
+                        'fail': '#e74c3c',
+                        'warning': '#f39c12',
+                        'error': '#e74c3c'
+                    };
+                    
+                    // 個別テスト結果の表示
+                    let testDetails = '';
+                    if (basicData.tests && basicData.tests.length > 0) {
+                        testDetails = '<div style="margin-top: 15px; border-top: 1px solid #ddd; padding-top: 10px;">';
+                        testDetails += '<h4 style="margin-bottom: 10px;">個別テスト結果:</h4>';
+                        
+                        basicData.tests.forEach(test => {
+                            const testStatus = (test.outcome === 'pass' || test.success) ? '✅ 成功' : '❌ 失敗';
+                            const statusStyle = (test.outcome === 'pass' || test.success) ? 'color: #27ae60;' : 'color: #e74c3c;';
+                            testDetails += `
+                                <div style="margin-bottom: 8px; padding: 8px; background: #f8f9fa; border-radius: 4px;">
+                                    <div style="display: flex; justify-content: space-between; align-items: center;">
+                                        <strong style="${statusStyle}">${testStatus}</strong>
+                                        <span style="font-size: 0.9em;">${test.name || test.endpoint}</span>
+                                    </div>
+                                    ${test.description ? `<div style="font-size: 0.85em; color: #666; margin-top: 4px;">${test.description}</div>` : ''}
+                                    <div style="font-size: 0.85em; color: #888; margin-top: 4px;">
+                                        応答時間: ${test.details?.response_time || test.response_time || 'N/A'} | 
+                                        ステータスコード: ${test.details?.status_code || test.status_code || 'N/A'}
+                                    </div>
+                                    ${test.details || test.error ? `<div style="font-size: 0.85em; color: #e74c3c; margin-top: 4px;">エラー: ${test.details || test.error}</div>` : ''}
+                                </div>
+                            `;
+                        });
+                        testDetails += '</div>';
+                    }
+                    
+                    html += `
+                        <div style="margin-bottom: 20px;">
+                            <h4 style="margin-bottom: 10px; color: #2c3e50;">🧪 基本機能テスト</h4>
+                            <div class="metric">
+                                <span class="metric-label">ステータス</span>
+                                <span class="metric-value" style="color: ${statusColor[basicData.status]}; font-weight: bold;">
+                                    ${basicData.status === 'pass' ? '✅ 全テスト成功' : 
+                                      basicData.status === 'fail' ? '❌ 一部失敗' : 
+                                      basicData.status === 'error' ? '⚠️ エラー' : basicData.status.toUpperCase()}
+                                </span>
+                            </div>
+                            <div class="metric">
+                                <span class="metric-label">テスト結果</span>
+                                <span class="metric-value">
+                                    <span style="color: #27ae60;">成功: ${basicData.summary.passed}</span> / 
+                                    <span style="color: #e74c3c;">失敗: ${basicData.summary.failed}</span> / 
+                                    <span style="color: #333;">総数: ${basicData.summary.total}</span>
+                                </span>
+                            </div>
+                            <div class="metric">
+                                <span class="metric-label">実行時間</span>
+                                <span class="metric-value">${basicData.summary.duration}</span>
+                            </div>
+                            ${testDetails}
+                        </div>
+                    `;
+                }
+                
+                // 安定性テスト結果の表示
+                if (stabilityData.status !== 'not_found') {
+                    const statusColor = {
+                        'pass': '#27ae60',
+                        'fail': '#e74c3c',
+                        'warning': '#f39c12',
+                        'error': '#e74c3c'
+                    };
+                    
+                    html += `
+                        <div style="margin-bottom: 20px; ${basicData.status !== 'not_found' ? 'border-top: 2px solid #ecf0f1; padding-top: 15px;' : ''}">
+                            <h4 style="margin-bottom: 10px; color: #2c3e50;">📊 安定性テスト</h4>
+                            <div class="metric">
+                                <span class="metric-label">ステータス</span>
+                                <span class="metric-value" style="color: ${statusColor[stabilityData.status]}; font-weight: bold;">
+                                    ${stabilityData.status === 'pass' ? '✅ 安定性良好' : 
+                                      stabilityData.status === 'fail' ? '❌ 問題検出' : 
+                                      stabilityData.status === 'warning' ? '⚠️ 要注意' : stabilityData.status.toUpperCase()}
+                                </span>
+                            </div>
+                            <div class="metric">
+                                <span class="metric-label">実行時間</span>
+                                <span class="metric-value">${stabilityData.summary.duration_hours.toFixed(2)}時間</span>
+                            </div>
+                            <div class="metric">
+                                <span class="metric-label">チェック回数</span>
+                                <span class="metric-value">${stabilityData.summary.total_checks}回</span>
+                            </div>
+                            <div class="metric">
+                                <span class="metric-label">平均CPU</span>
+                                <span class="metric-value">${stabilityData.summary.avg_cpu.toFixed(1)}%</span>
+                            </div>
+                            <div class="metric">
+                                <span class="metric-label">平均メモリ</span>
+                                <span class="metric-value">${stabilityData.summary.avg_memory.toFixed(1)}%</span>
+                            </div>
+                            ${stabilityData.summary.total_errors > 0 ? `
+                                <div class="metric">
+                                    <span class="metric-label">エラー数</span>
+                                    <span class="metric-value" style="color: #e74c3c;">${stabilityData.summary.total_errors}</span>
+                                </div>
+                            ` : ''}
+                            ${stabilityData.recommendations && stabilityData.recommendations.length > 0 ? `
+                                <div style="margin-top: 10px;">
+                                    <strong style="color: #2c3e50;">推奨事項:</strong>
+                                    <ul style="margin: 5px 0 0 0; padding-left: 20px; font-size: 0.9em;">
+                                        ${stabilityData.recommendations.map(rec => `<li>${rec}</li>`).join('')}
+                                    </ul>
+                                </div>
+                            ` : ''}
+                        </div>
+                    `;
+                }
+                
+                // テスト結果がない場合
+                if (basicData.status === 'not_found' && stabilityData.status === 'not_found') {
+                    html = '<p>テスト結果がありません</p>';
+                }
+                
+                document.getElementById('test-results').innerHTML = html;
+                
+            } catch (error) {
+                console.error('テスト結果取得エラー:', error);
+                document.getElementById('test-results').innerHTML = '<p>テスト結果の取得に失敗しました</p>';
+            }
+        }
+
+        // ログ更新
+        async function updateLogs() {
+            try {
+                const response = await fetch(`/api/simple-test/logs?type=${currentLogType}&lines=50`);
+                const data = await response.json();
+                
+                document.getElementById('log-content').textContent = 
+                    data.status === 'success' ? data.logs : data.logs || 'ログの取得に失敗しました';
+                
+            } catch (error) {
+                console.error('ログ取得エラー:', error);
+                document.getElementById('log-content').textContent = 'ログの取得に失敗しました';
+            }
+        }
+
+        // ログタイプ切り替え
+        function switchLog(type) {
+            currentLogType = type;
+            updateLogs();
+        }
+
+        // テスト実行
+        async function runTests() {
+            const testDescription = `基本APIテストを実行しますか？
+
+このテストは以下の3つのAPIエンドポイントの動作を確認します：
+1. ヘルスチェック (/health) - システムの基本状態
+2. センサーデータ (/api/sensor) - 温湿度・CO2データ取得
+3. カレンダー (/api/calendar) - Google Calendarからの祝日と個人予定
+
+所要時間：約20秒`;
+            
+            if (!confirm(testDescription)) {
+                return;
+            }
+            
+            try {
+                const response = await fetch('/api/simple-test/run-tests', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ test_type: 'basic' })
+                });
+                
+                const result = await response.json();
+                
+                if (result.status === 'started') {
+                    alert(`✅ ${result.message}\n\n結果は約1分後にテスト結果欄に表示されます。`);
+                    // 少し待ってからテスト結果を更新
+                    setTimeout(() => {
+                        updateTestResults();
+                    }, 5000);
+                } else {
+                    alert(`❌ テスト実行エラー: ${result.message}`);
+                }
+                
+            } catch (error) {
+                alert(`❌ テスト実行に失敗しました: ${error.message}`);
+            }
+        }
+
+        // 安定性テスト実行
+        async function runStabilityTest() {
+            if (!confirm('安定性テストを実行しますか？（約5分程度）')) {
+                return;
+            }
+            
+            try {
+                const response = await fetch('/api/simple-test/run-tests', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ test_type: 'stability' })
+                });
+                
+                const result = await response.json();
+                
+                if (result.status === 'started') {
+                    alert(`✅ ${result.message}\n\n結果は約5分後に表示されます。`);
+                    // 少し待ってからテスト結果を更新
+                    setTimeout(() => {
+                        updateTestResults();
+                    }, 10000);
+                } else {
+                    alert(`❌ テスト実行エラー: ${result.message}`);
+                }
+                
+            } catch (error) {
+                alert(`❌ 安定性テスト実行に失敗しました: ${error.message}`);
+            }
+        }
+
+        // ログクリア
+        async function clearLogs() {
+            if (confirm('ログをクリアしますか？')) {
+                alert('ログクリア機能は未実装です');
+            }
+        }
+
+        // 稼働時間のフォーマット
+        function formatUptime(seconds) {
+            if (!seconds) return '--';
+            
+            const days = Math.floor(seconds / 86400);
+            const hours = Math.floor((seconds % 86400) / 3600);
+            const minutes = Math.floor((seconds % 3600) / 60);
+            
+            if (days > 0) {
+                return `${days}日 ${hours}時間 ${minutes}分`;
+            } else if (hours > 0) {
+                return `${hours}時間 ${minutes}分`;
+            } else {
+                return `${minutes}分`;
+            }
+        }
+
+        // SSD健康状態更新
+        async function updateSSDHealth() {
+            try {
+                const response = await fetch('/api/ssd/health');
+                const result = await response.json();
+                
+                const statusElement = document.getElementById('ssd-status');
+                const detailsElement = document.getElementById('ssd-health-details');
+                
+                if (result.status === 'success') {
+                    const healthStatus = result.data.health_status || {};
+                    const smartData = result.data.smart_data || {};
+                    
+                    // ステータスインジケーター更新
+                    const overallStatus = healthStatus.overall_status || 'unknown';
+                    statusElement.className = `status-indicator status-${overallStatus}`;
+                    
+                    // 詳細情報の構築
+                    let html = '';
+                    
+                    // 基本健康状態
+                    const statusText = {
+                        'healthy': '正常',
+                        'warning': '注意',
+                        'critical': '危険',
+                        'unknown': '不明'
+                    };
+                    
+                    html += `
+                        <div class="metric">
+                            <span class="metric-label">健康状態</span>
+                            <span class="metric-value" style="color: ${getStatusColor(overallStatus)}; font-weight: bold;">
+                                ${statusText[overallStatus] || overallStatus}
+                            </span>
+                        </div>
+                        <div class="metric">
+                            <span class="metric-label">健康スコア</span>
+                            <span class="metric-value">${healthStatus.health_score || 0}/100</span>
+                        </div>
+                    `;
+                    
+                    // SMART属性表示
+                    if (smartData.available && smartData.attributes) {
+                        const attrs = smartData.attributes;
+                        
+                        if (attrs.temperature !== undefined) {
+                            html += `
+                                <div class="metric">
+                                    <span class="metric-label">温度</span>
+                                    <span class="metric-value">${attrs.temperature}°C</span>
+                                </div>
+                            `;
+                        }
+                        
+                        if (attrs.wear_percentage !== undefined) {
+                            html += `
+                                <div class="metric">
+                                    <span class="metric-label">摩耗率</span>
+                                    <span class="metric-value">${attrs.wear_percentage}%</span>
+                                </div>
+                            `;
+                        }
+                        
+                        if (attrs.power_on_hours !== undefined) {
+                            const years = (attrs.power_on_hours / (24 * 365)).toFixed(1);
+                            html += `
+                                <div class="metric">
+                                    <span class="metric-label">稼働時間</span>
+                                    <span class="metric-value">${attrs.power_on_hours.toLocaleString()}h (${years}年)</span>
+                                </div>
+                            `;
+                        }
+                    }
+                    
+                    // 警告・推奨事項
+                    if (healthStatus.warnings && healthStatus.warnings.length > 0) {
+                        html += '<div style="margin-top: 10px; color: #f39c12;"><strong>⚠️ 警告:</strong><ul style="margin: 5px 0; padding-left: 20px; font-size: 0.9em;">';
+                        healthStatus.warnings.forEach(warning => {
+                            html += `<li>${warning}</li>`;
+                        });
+                        html += '</ul></div>';
+                    }
+                    
+                    if (healthStatus.critical_issues && healthStatus.critical_issues.length > 0) {
+                        html += '<div style="margin-top: 10px; color: #e74c3c;"><strong>🚨 重大問題:</strong><ul style="margin: 5px 0; padding-left: 20px; font-size: 0.9em;">';
+                        healthStatus.critical_issues.forEach(issue => {
+                            html += `<li>${issue}</li>`;
+                        });
+                        html += '</ul></div>';
+                    }
+                    
+                    // 次回チェック予定
+                    if (healthStatus.next_check_due) {
+                        const nextCheck = new Date(healthStatus.next_check_due);
+                        html += `
+                            <div class="metric">
+                                <span class="metric-label">次回チェック予定</span>
+                                <span class="metric-value" style="font-size: 0.9em;">${nextCheck.toLocaleDateString('ja-JP')}</span>
+                            </div>
+                        `;
+                    }
+                    
+                    detailsElement.innerHTML = html;
+                    
+                } else if (result.status === 'no_data') {
+                    statusElement.className = 'status-indicator status-unknown';
+                    detailsElement.innerHTML = '<p>SSD健康状態データがありません。健康テストを実行してください。</p>';
+                } else {
+                    statusElement.className = 'status-indicator status-critical';
+                    detailsElement.innerHTML = `<p style="color: #e74c3c;">エラー: ${result.error || result.message}</p>`;
+                }
+                
+            } catch (error) {
+                console.error('SSD健康状態取得エラー:', error);
+                document.getElementById('ssd-status').className = 'status-indicator status-critical';
+                document.getElementById('ssd-health-details').innerHTML = '<p style="color: #e74c3c;">SSD健康状態の取得に失敗しました</p>';
+            }
+        }
+
+        // SSDヘルステスト実行
+        async function runSSDHealthTest() {
+            const testDescription = `M.2 SSD健康テストを実行しますか？
+
+このテストは以下を確認します：
+• NVMeデバイスの検出
+• SMART属性の取得（温度、摩耗率、稼働時間など）
+• 健康状態の評価と推奨事項の提示
+• パフォーマンス情報の取得
+
+所要時間：約30秒`;
+            
+            if (!confirm(testDescription)) {
+                return;
+            }
+            
+            try {
+                const response = await fetch('/api/ssd/test', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ force: true })
+                });
+                
+                const result = await response.json();
+                
+                if (result.status === 'success') {
+                    alert(`✅ SSD健康テスト完了
+
+結果: ${result.data.success ? '正常' : '異常検出'}
+実行時間: ${result.data.duration_seconds}秒
+
+健康状態表示が更新されました。`);
+                    
+                    // SSD健康状態を更新
+                    await updateSSDHealth();
+                } else {
+                    alert(`❌ SSD健康テストエラー: ${result.error || result.message}`);
+                }
+                
+            } catch (error) {
+                alert(`❌ SSD健康テスト実行に失敗しました: ${error.message}`);
+            }
+        }
+
+        // ステータス色取得
+        function getStatusColor(status) {
+            const colors = {
+                'healthy': '#27ae60',
+                'warning': '#f39c12',
+                'critical': '#e74c3c',
+                'unknown': '#95a5a6'
+            };
+            return colors[status] || '#95a5a6';
+        }
+
+        // CO2アラート履歴更新
+        async function updateAlertHistory() {
+            try {
+                const response = await fetch('/api/co2/alerts?days=7');
+                const result = await response.json();
+                
+                const statusElement = document.getElementById('alerts-status');
+                const detailsElement = document.getElementById('alert-history-details');
+                
+                if (result.status === 'success') {
+                    const alertsData = result.data.alerts || [];
+                    const alertCount = result.data.count || 0;
+                    
+                    // ステータスインジケーター更新
+                    if (alertCount === 0) {
+                        statusElement.className = 'status-indicator status-good';
+                    } else if (alertCount < 5) {
+                        statusElement.className = 'status-indicator status-warning';
+                    } else {
+                        statusElement.className = 'status-indicator status-critical';
+                    }
+                    
+                    // アラート履歴詳細表示
+                    let html = `
+                        <div class="metric">
+                            <span class="metric-label">7日間のアラート数</span>
+                            <span class="metric-value">${alertCount}件</span>
+                        </div>
+                    `;
+                    
+                    if (alertCount > 0) {
+                        html += '<div style="margin-top: 15px; font-weight: bold;">最新のアラート:</div>';
+                        
+                        // 最新5件のアラートを表示
+                        const recentAlerts = alertsData.slice(0, 5);
+                        recentAlerts.forEach(alert => {
+                            const alertTime = new Date(alert.timestamp).toLocaleString('ja-JP');
+                            const levelColor = {
+                                'warning': '#f39c12',
+                                'critical': '#e74c3c',
+                                'severe': '#8e44ad'
+                            }[alert.level] || '#95a5a6';
+                            
+                            html += `
+                                <div style="margin: 8px 0; padding: 8px; background: #f8f9fa; border-radius: 4px; border-left: 4px solid ${levelColor};">
+                                    <div style="font-size: 0.9rem; color: #2c3e50;">
+                                        <strong>⏰ ${alertTime}</strong>
+                                    </div>
+                                    <div style="font-size: 0.85rem; color: #34495e; margin-top: 4px;">
+                                        <span style="color: ${levelColor}; font-weight: bold;">[${alert.level.toUpperCase()}]</span>
+                                        CO2: ${alert.co2_ppm}ppm - ${alert.message}
+                                    </div>
+                                    ${alert.location ? `<div style="font-size: 0.8rem; color: #7f8c8d;">📍 ${alert.location}</div>` : ''}
+                                </div>
+                            `;
+                        });
+                        
+                        if (alertCount > 5) {
+                            html += `<div style="text-align: center; margin-top: 10px; color: #7f8c8d; font-size: 0.9rem;">他 ${alertCount - 5} 件のアラートがあります</div>`;
+                        }
+                    } else {
+                        html += '<div style="margin-top: 15px; color: #27ae60; text-align: center;">✅ 過去7日間にアラートはありません</div>';
+                    }
+                    
+                    detailsElement.innerHTML = html;
+                    
+                } else {
+                    statusElement.className = 'status-indicator status-critical';
+                    detailsElement.innerHTML = `<p style="color: #e74c3c;">エラー: ${result.error || result.message}</p>`;
+                }
+                
+            } catch (error) {
+                console.error('アラート履歴取得エラー:', error);
+                document.getElementById('alerts-status').className = 'status-indicator status-critical';
+                document.getElementById('alert-history-details').innerHTML = '<p style="color: #e74c3c;">アラート履歴の取得に失敗しました</p>';
+            }
+        }
+        
+        // カレンダーキャッシュ優先システム状態更新
+        async function updateCachePriorityStatus() {
+            try {
+                const response = await fetch('/api/calendar/cache-status');
+                const result = await response.json();
+                
+                const statusElement = document.getElementById('cache-priority-status');
+                const detailsElement = document.getElementById('cache-priority-details');
+                
+                if (result.status === 'success') {
+                    const data = result.data;
+                    
+                    // 状態判定
+                    let overallStatus = 'healthy';
+                    if (!data.system_ready) {
+                        overallStatus = 'critical';
+                    } else if (!data.personal_cache_valid || !data.holidays_available) {
+                        overallStatus = 'warning';
+                    }
+                    
+                    // ステータスインジケーター更新
+                    statusElement.className = `status-indicator status-${overallStatus}`;
+                    
+                    // 詳細情報構築
+                    let html = `
+                        <div class="metric">
+                            <span class="metric-label">システム状態</span>
+                            <span class="metric-value" style="color: ${getStatusColor(overallStatus)}; font-weight: bold;">
+                                ${overallStatus === 'healthy' ? '正常' : 
+                                  overallStatus === 'warning' ? '注意' : 
+                                  overallStatus === 'critical' ? '異常' : '不明'}
+                            </span>
+                        </div>
+                        <div class="metric">
+                            <span class="metric-label">個人予定キャッシュ</span>
+                            <span class="metric-value">
+                                ${data.personal_cache_exists ? 
+                                    (data.personal_cache_valid ? '✅ 有効' : '⚠️ 期限切れ') : 
+                                    '❌ なし'}
+                            </span>
+                        </div>
+                        <div class="metric">
+                            <span class="metric-label">祝日データ</span>
+                            <span class="metric-value">
+                                ${data.holidays_available ? '✅ 利用可能' : '❌ 取得不可'}
+                            </span>
+                        </div>
+                        <div class="metric">
+                            <span class="metric-label">優先キャッシュ</span>
+                            <span class="metric-value">
+                                ${data.priority_cache_exists ? '✅ 存在' : 'ℹ️ 未作成'}
+                            </span>
+                        </div>
+                    `;
+                    
+                    detailsElement.innerHTML = html;
+                    
+                } else {
+                    statusElement.className = 'status-indicator status-critical';
+                    detailsElement.innerHTML = `<p style="color: #e74c3c;">エラー: ${result.error || result.message}</p>`;
+                }
+                
+            } catch (error) {
+                console.error('キャッシュ優先システム状態取得エラー:', error);
+                document.getElementById('cache-priority-status').className = 'status-indicator status-critical';
+                document.getElementById('cache-priority-details').innerHTML = '<p style="color: #e74c3c;">状態取得に失敗しました</p>';
+            }
+        }
+
+        // キャッシュ優先システムテスト実行
+        async function testCachePriority() {
+            const testDescription = `カレンダーキャッシュ優先システムをテストしますか？
+
+このテストは以下を確認します：
+• 期限切れキャッシュ + 祝日データでの先行表示
+• API取得成功時の表示更新
+• API失敗時のフォールバック機能
+• 優先キャッシュシステムの全体動作
+
+所要時間：約10秒`;
+            
+            if (!confirm(testDescription)) {
+                return;
+            }
+            
+            try {
+                // 現在月でキャッシュ優先表示をテスト
+                const now = new Date();
+                const response = await fetch(`/api/calendar/priority?year=${now.getFullYear()}&month=${now.getMonth() + 1}`);
+                const result = await response.json();
+                
+                if (result.status === 'success' || result.status === 'fallback') {
+                    const priorityStatus = result.data.cache_priority_status || {};
+                    const displaySource = priorityStatus.display_source || 'unknown';
+                    const apiSuccess = priorityStatus.api_success ? '成功' : '失敗';
+                    const fallbackUsed = priorityStatus.fallback_used ? 'あり' : 'なし';
+                    
+                    alert(`✅ キャッシュ優先システムテスト完了
+
+結果: ${result.status}
+表示ソース: ${displaySource}
+API取得: ${apiSuccess}
+フォールバック: ${fallbackUsed}
+個人予定: ${result.data.google_events_count}件
+祝日: ${result.data.holidays_count}件
+
+キャッシュ優先システムは正常に動作しています。`);
+                    
+                    // 状態を更新
+                    await updateCachePriorityStatus();
+                } else {
+                    alert(`❌ キャッシュ優先システムテストエラー: ${result.error || result.message}`);
+                }
+                
+            } catch (error) {
+                alert(`❌ キャッシュ優先システムテスト実行に失敗しました: ${error.message}`);
+            }
+        }
+        
+        // チャートグラフ関連の関数 - 外部simple_charts.jsに移譲
+        function switchTimeRange(range) {
+            console.log('switchTimeRange called with:', range);
+            
+            // 外部システム使用
+            if (window.simpleMonitoringCharts && window.simpleMonitoringCharts.changeTimeRange) {
+                window.simpleMonitoringCharts.changeTimeRange(range);
+            } else {
+                console.warn('外部チャートシステムが未初期化 - 時間範囲:', range);
+                
+                // フォールバック: ボタン状態だけでも更新
+                document.querySelectorAll('.time-range-btn').forEach(btn => {
+                    btn.classList.remove('active');
+                });
+                const targetButton = document.querySelector(`[data-range="${range}"]`);
+                if (targetButton) {
+                    targetButton.classList.add('active');
+                }
+            }
+        }
+        
+        function refreshCharts() {
+            if (window.simpleMonitoringCharts && window.simpleMonitoringCharts.manualRefresh) {
+                window.simpleMonitoringCharts.manualRefresh();
+            }
+        }
+        
+        function toggleAutoRefresh() {
+            // 外部システムでは自動更新は標準で動作するため、この機能は簡略化
+            console.log('自動更新切り替え - 外部システムでは標準動作');
+        }
+    </script>
+    
+    <!-- 監視チャート機能 - Chart.js依存性確保 -->
+    <script>
+        // Chart.js読み込み完了を待ってから監視チャート初期化
+        let chartCheckCount = 0;
+        const maxCheckCount = 50; // 5秒でタイムアウト
+        
+        function loadMonitoringCharts() {
+            // 外部simple_charts.js使用のため、ここでの初期化は不要
+            console.log('🚀 === 外部simple_charts.js読み込み済み - 初期化は外部ファイルで実行 ===');
+            document.getElementById('simple-charts-init-status').textContent = '✅ 外部チャートシステム使用中';
+        }
+        
+        // フォールバック用のシンプルなチャート表示
+        function createFallbackCharts() {
+            console.log('Chart.jsなしでのフォールバック表示を実行');
+            const chartContainers = document.querySelectorAll('.chart-container');
+            chartContainers.forEach(container => {
+                const canvas = container.querySelector('canvas');
+                if (canvas) {
+                    const ctx = canvas.getContext('2d');
+                    ctx.fillStyle = '#f0f0f0';
+                    ctx.fillRect(0, 0, canvas.width, canvas.height);
+                    ctx.fillStyle = '#666';
+                    ctx.font = '16px Arial';
+                    ctx.textAlign = 'center';
+                    ctx.fillText('Chart.js読み込みエラー', canvas.width/2, canvas.height/2);
+                }
+            });
+        }
+        
+        // DOMContentLoaded後にChart.js読み込み確認
+        document.addEventListener('DOMContentLoaded', function() {
+            console.log('DOMContentLoaded - 外部simple_charts.jsで初期化済み');
+            
+            // simple_charts.js初期化状況確認
+            setTimeout(() => {
+                if (window.simpleMonitoringCharts) {
+                    console.log('[SystemMonitor] ✅ simple_charts.js初期化済み - グラフ表示可能');
+                    document.getElementById('simple-charts-init-status').textContent = '✅ 初期化済み';
+                } else {
+                    console.error('[SystemMonitor] ❌ simple_charts.js初期化失敗 - グラフ表示不可');
+                    document.getElementById('simple-charts-init-status').textContent = '❌ 初期化失敗';
+                }
+            }, 2000);
+            
+            loadMonitoringCharts();
+        });
+    </script>
+</body>
+</html>

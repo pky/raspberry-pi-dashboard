@@ -1,0 +1,14 @@
+[Unit]
+Description=SSD Weekly Health Test
+After=multi-user.target
+
+[Service]
+Type=oneshot
+User=root
+WorkingDirectory=/path/to/raspberry-pi-dashboard
+ExecStart=/usr/bin/python3 /path/to/raspberry-pi-dashboard/scripts/ssd_management/ssd_health_check.py --weekly-check
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target

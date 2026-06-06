@@ -1,0 +1,58 @@
+# Raspberry Pi Dashboard - Backup Exclude Patterns
+# rsync --exclude-from で使用される除外パターン
+
+# ログファイル（logrotateで管理）
+logs/
+*.log
+*.log.*
+
+# キャッシュ
+.cache/
+__pycache__/
+*.pyc
+*.pyo
+.pytest_cache/
+
+# Python仮想環境
+venv/
+venv_*/
+.venv/
+
+# バックアップディレクトリ（再帰バックアップ防止）
+backups/
+backup_*/
+/opt/raspberry-pi-backups/
+
+# Git
+.git/
+
+# 一時ファイル
+*.tmp
+*.temp
+*.swp
+*~
+
+# データベース（別途バックアップ）
+*.db
+
+# テストログ
+test_logs/
+
+# IDE設定
+.vscode/
+.idea/
+
+# 履歴ファイル
+.bash_history
+.python_history
+
+# DBus
+.dbus/
+
+# macOS
+.DS_Store
+
+# 認証情報（セキュリティ）
+credentials/
+*.pem
+*.key

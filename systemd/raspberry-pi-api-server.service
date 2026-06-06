@@ -1,0 +1,54 @@
+[Unit]
+Description=Raspberry Pi Dashboard Flask API Server
+After=network.target
+Wants=network.target
+
+[Service]
+Type=simple
+User=pi
+Group=pi
+WorkingDirectory=/path/to/raspberry-pi-dashboard
+ExecStart=/usr/bin/python3 app.py
+ExecReload=/bin/kill -HUP $MAINPID
+KillMode=mixed
+TimeoutStopSec=10
+Restart=always
+RestartSec=5
+TimeoutStartSec=60
+
+# ログ設定
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=raspberry-pi-api
+
+# 環境変数
+Environment=PYTHONPATH=/path/to/raspberry-pi-dashboard
+Environment=FLASK_ENV=production
+Environment=FLASK_LOG_LEVEL=INFO
+# CO2センサー（MH-Z19E）UART通信用
+Environment=CO2_SENSOR_PORT=/dev/serial0
+Environment=CO2_SENSOR_ENABLED=true
+
+# セキュリティ設定
+NoNewPrivileges=yes
+ProtectSystem=strict
+ProtectHome=read-only
+ReadWritePaths=/path/to/raspberry-pi-dashboard
+PrivateTmp=yes
+# CO2センサー用デバイスアクセス権限
+SupplementaryGroups=dialout tty
+
+# リソース制限
+LimitNOFILE=65536
+LimitNPROC=2048
+MemoryMax=512M
+# GPIO プロセス制限（libgpiod_pulsei ゾンビプロセス対策）
+TasksMax=100
+# プロセス監視とクリーンアップのためのキルモード強化
+KillSignal=SIGTERM
+
+# ヘルスチェック（systemd 250以降で利用可能）
+# ExecStartPost=/bin/bash -c 'sleep 10 && curl -f http://localhost:5000/health || exit 1'
+
+[Install]
+WantedBy=multi-user.target

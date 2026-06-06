@@ -1,0 +1,42 @@
+#!/bin/bash
+# ディスプレイレイアウト固定スクリプト
+
+echo "🔧 ディスプレイレイアウト固定設定を開始..."
+
+# X11が起動するまで待機
+for i in {1..30}; do
+    if DISPLAY=:0 xset q >/dev/null 2>&1; then
+        echo "✅ X11が起動済み（$i秒後）"
+        break
+    fi
+    echo "⏳ X11起動待機... ($i/30)"
+    sleep 1
+done
+
+# 現在のディスプレイ情報を確認
+echo "📋 現在のディスプレイ配置:"
+DISPLAY=:0 xrandr | grep " connected"
+
+# タッチパネル（1024x600）を左側（0,0）に配置
+# 普通のディスプレイ（2560x1440）を右側（1024,0）に配置
+if DISPLAY=:0 xrandr --output HDMI-1 --mode 1024x600 --pos 0x0 --primary --output HDMI-2 --mode 2560x1440 --pos 1024x0 2>/dev/null; then
+    echo "✅ ディスプレイレイアウト固定完了"
+    echo "   - HDMI-1 (タッチパネル): 0,0 (プライマリ)"
+    echo "   - HDMI-2 (普通): 1024,0 (セカンダリ)"
+else
+    echo "⚠️ レイアウト設定失敗、代替方法を試行..."
+    
+    # 代替方法: 単純にタッチパネルをプライマリに
+    if DISPLAY=:0 xrandr --output HDMI-1 --primary 2>/dev/null; then
+        echo "✅ タッチパネルをプライマリに設定完了"
+    else
+        echo "❌ 全ての設定に失敗しました"
+        exit 1
+    fi
+fi
+
+# 確認
+echo "🎯 最終レイアウト:"
+DISPLAY=:0 xrandr | grep " connected"
+
+echo "✅ ディスプレイレイアウト固定処理完了"

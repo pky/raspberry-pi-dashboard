@@ -1,0 +1,90 @@
+{
+  "backup": {
+    "enabled": true,
+    "compression": true,
+    "encryption": false,
+    "verification": true
+  },
+  "local_backup": {
+    "base_directory": "/home/pi/projects/raspberry-pi-dashboard/backups",
+    "max_backups": 10,
+    "retention_days": 7,
+    "full_retention_days": 7,
+    "incremental_retention_days": 7,
+    "use_hardlinks": true,
+    "rsync_options": [
+      "--archive",
+      "--verbose",
+      "--delete",
+      "--exclude-from=exclude_patterns.txt"
+    ]
+  },
+  "source": {
+    "home_directory": "/home/pi",
+    "system_configs": [
+      "/etc/systemd/system/raspberry-pi-*.service",
+      "/etc/logrotate.d/raspberry-pi-dashboard"
+    ],
+    "exclude_patterns": [
+      ".cache/",
+      ".dbus/",
+      ".bash_history",
+      ".python_history",
+      "*.log",
+      "__pycache__/",
+      "*.pyc",
+      "backups/",
+      "backup_*",
+      "venv/",
+      "logs/",
+      ".git/",
+      "*.tmp"
+    ]
+  },
+  "external_backup": {
+    "nas": {
+      "enabled": true,
+      "server": "your-nas.local",
+      "share": "backup",
+      "mount_point": "/mnt/nas_backup",
+      "username": "backup",
+      "password": "backup",
+      "remote_directory": "raspberry-pi-home"
+    },
+    "usb": {
+      "enabled": false,
+      "mount_point": "/mnt/usb_backup",
+      "auto_detect": true
+    }
+  },
+  "scheduling": {
+    "daily": {
+      "enabled": true,
+      "time": "04:00",
+      "type": "incremental"
+    },
+    "weekly": {
+      "enabled": false,
+      "day": "sunday",
+      "time": "05:00",
+      "type": "full"
+    }
+  },
+  "notifications": {
+    "success": {
+      "enabled": true,
+      "method": "log"
+    },
+    "failure": {
+      "enabled": true,
+      "method": "log",
+      "critical": true
+    }
+  },
+  "system": {
+    "lock_file": "/tmp/raspberry-pi-backup.lock",
+    "log_level": "INFO",
+    "max_parallel_operations": 1,
+    "timeout_minutes": 60
+  }
+}

@@ -1,0 +1,673 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>バックアップ管理 - Raspberry Pi Dashboard</title>
+    
+    <!-- Bootstrap CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <!-- Font Awesome -->
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    
+    <style>
+        .backup-card {
+            transition: all 0.2s ease;
+            border-left: 4px solid transparent;
+        }
+        .backup-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+        }
+        .backup-card.recent {
+            border-left-color: #28a745;
+        }
+        .backup-card.old {
+            border-left-color: #ffc107;
+        }
+        .backup-card.manual {
+            border-left-color: #007bff;
+        }
+        
+        .status-badge {
+            font-size: 0.8em;
+            padding: 0.25rem 0.5rem;
+        }
+        
+        .backup-action-btn {
+            margin: 0.2rem;
+        }
+        
+        .progress-wrapper {
+            display: none;
+            margin-top: 1rem;
+        }
+        
+        .log-output {
+            max-height: 300px;
+            overflow-y: auto;
+            font-family: monospace;
+            font-size: 0.9em;
+        }
+        
+        .stats-card {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+    </style>
+</head>
+<body>
+    <div class="container-fluid py-4">
+        <div class="row">
+            <div class="col-12">
+                <div class="d-flex justify-content-between align-items-center mb-4">
+                    <h1><i class="fas fa-save me-2"></i>バックアップ管理</h1>
+                    <div class="nav-buttons">
+                        <a href="/" class="btn btn-outline-primary me-2">
+                            <i class="fas fa-home me-1"></i>ホーム
+                        </a>
+                        <a href="/system_monitor.html" class="btn btn-outline-success">
+                            <i class="fas fa-chart-line me-1"></i>システム監視
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 統計情報 -->
+        <div class="row mb-4">
+            <div class="col-md-3 col-sm-6 mb-3">
+                <div class="card stats-card">
+                    <div class="card-body text-center">
+                        <i class="fas fa-database fa-2x mb-2"></i>
+                        <h5 id="total-backups">-</h5>
+                        <p class="mb-0">総バックアップ数</p>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3 col-sm-6 mb-3">
+                <div class="card stats-card">
+                    <div class="card-body text-center">
+                        <i class="fas fa-clock fa-2x mb-2"></i>
+                        <h5 id="latest-backup">-</h5>
+                        <p class="mb-0">最新バックアップ</p>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3 col-sm-6 mb-3">
+                <div class="card stats-card">
+                    <div class="card-body text-center">
+                        <i class="fas fa-hdd fa-2x mb-2"></i>
+                        <h5 id="total-size">-</h5>
+                        <p class="mb-0">総使用容量</p>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3 col-sm-6 mb-3">
+                <div class="card stats-card">
+                    <div class="card-body text-center">
+                        <i class="fas fa-check-circle fa-2x mb-2"></i>
+                        <h5 id="success-rate">-</h5>
+                        <p class="mb-0">成功率</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- アクションパネル -->
+        <div class="row mb-4">
+            <div class="col-12">
+                <div class="card">
+                    <div class="card-header">
+                        <h5 class="mb-0">バックアップ操作</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="row">
+                            <div class="col-md-6">
+                                <h6>手動バックアップ作成</h6>
+                                <div class="mb-3">
+                                    <label for="backup-name" class="form-label">バックアップ名</label>
+                                    <input type="text" class="form-control" id="backup-name" placeholder="例: manual-maintenance">
+                                </div>
+                                <div class="mb-3">
+                                    <label for="backup-description" class="form-label">説明</label>
+                                    <textarea class="form-control" id="backup-description" rows="2" placeholder="バックアップの目的や理由"></textarea>
+                                </div>
+                                <button class="btn btn-primary" onclick="createBackup()">
+                                    <i class="fas fa-plus-circle me-1"></i>バックアップ作成
+                                </button>
+                            </div>
+                            <div class="col-md-6">
+                                <h6>クイックアクション</h6>
+                                <button class="btn btn-success mb-2" onclick="refreshBackupList()">
+                                    <i class="fas fa-sync me-1"></i>一覧更新
+                                </button>
+                                <button class="btn btn-info mb-2" onclick="cleanupOldBackups()">
+                                    <i class="fas fa-broom me-1"></i>古いバックアップ削除
+                                </button>
+                                <button class="btn btn-warning mb-2" onclick="verifyAllBackups()">
+                                    <i class="fas fa-check-double me-1"></i>全バックアップ検証
+                                </button>
+                                <button class="btn btn-secondary mb-2" onclick="showScheduleStatus()">
+                                    <i class="fas fa-calendar me-1"></i>スケジュール確認
+                                </button>
+                            </div>
+                        </div>
+                        
+                        <!-- プログレスバー -->
+                        <div class="progress-wrapper" id="progress-wrapper">
+                            <div class="progress mb-2">
+                                <div class="progress-bar progress-bar-striped progress-bar-animated" 
+                                     role="progressbar" style="width: 0%" id="progress-bar"></div>
+                            </div>
+                            <div class="alert alert-info" id="operation-status">
+                                操作を実行中...
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- バックアップ一覧 -->
+        <div class="row">
+            <div class="col-12">
+                <div class="card">
+                    <div class="card-header d-flex justify-content-between align-items-center">
+                        <h5 class="mb-0">バックアップ一覧</h5>
+                        <div>
+                            <select class="form-select form-select-sm" id="filter-type" onchange="filterBackups()">
+                                <option value="all">すべて</option>
+                                <option value="incremental">増分</option>
+                                <option value="manual">手動</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="card-body">
+                        <div id="backup-list" class="row">
+                            <!-- バックアップカードがここに動的に追加される -->
+                        </div>
+                        <div id="loading-spinner" class="text-center py-4">
+                            <div class="spinner-border text-primary" role="status">
+                                <span class="visually-hidden">読み込み中...</span>
+                            </div>
+                        </div>
+                        <div id="no-backups" class="text-center py-4" style="display: none;">
+                            <i class="fas fa-inbox fa-3x text-muted mb-3"></i>
+                            <p class="text-muted">バックアップが見つかりません</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 復元確認モーダル -->
+    <div class="modal fade" id="restoreModal" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">バックアップ復元</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="alert alert-warning">
+                        <i class="fas fa-exclamation-triangle me-1"></i>
+                        <strong>注意:</strong> この操作により現在のデータが置き換えられます。
+                        復元前に自動的に現在の状態がバックアップされます。
+                    </div>
+                    <p>復元するバックアップ: <strong id="restore-backup-name"></strong></p>
+                    <p>作成日時: <span id="restore-backup-date"></span></p>
+                    <div class="mb-3">
+                        <label for="restore-type" class="form-label">復元タイプ</label>
+                        <select class="form-select" id="restore-type">
+                            <option value="complete">完全復元（全ファイル）</option>
+                            <option value="config">設定ファイルのみ</option>
+                            <option value="data">データファイルのみ</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">キャンセル</button>
+                    <button type="button" class="btn btn-danger" onclick="executeRestore()">
+                        <i class="fas fa-undo me-1"></i>復元実行
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Bootstrap JS -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <!-- Backup Monitor JS -->
+    <script src="{{ url_for('static', filename='js/backup_monitor.js') }}"></script>
+    
+    <script>
+        let currentBackupId = null;
+        
+        // ページ読み込み時の初期化
+        document.addEventListener('DOMContentLoaded', function() {
+            loadBackupList();
+            loadStatistics();
+        });
+        
+        // バックアップ一覧を読み込み
+        async function loadBackupList() {
+            try {
+                document.getElementById('loading-spinner').style.display = 'block';
+                document.getElementById('no-backups').style.display = 'none';
+                
+                const response = await fetch('/api/backup/list');
+                const data = await response.json();
+                
+                document.getElementById('loading-spinner').style.display = 'none';
+                
+                if (data.success && data.data.backups.length > 0) {
+                    displayBackups(data.data.backups);
+                } else {
+                    document.getElementById('no-backups').style.display = 'block';
+                }
+            } catch (error) {
+                console.error('バックアップ一覧の読み込みに失敗:', error);
+                document.getElementById('loading-spinner').style.display = 'none';
+                showAlert('バックアップ一覧の読み込みに失敗しました', 'danger');
+            }
+        }
+        
+        // 統計情報を読み込み
+        async function loadStatistics() {
+            try {
+                const response = await fetch('/api/backup/statistics');
+                const data = await response.json();
+                
+                if (data.success) {
+                    const stats = data.data;
+                    document.getElementById('total-backups').textContent = stats.total_backups || 0;
+                    document.getElementById('latest-backup').textContent = stats.latest_backup || 'なし';
+                    document.getElementById('total-size').textContent = stats.total_size || '0 MB';
+                    document.getElementById('success-rate').textContent = (stats.success_rate || 0) + '%';
+                }
+            } catch (error) {
+                console.error('統計情報の読み込みに失敗:', error);
+            }
+        }
+        
+        // バックアップを表示
+        function displayBackups(backups) {
+            const backupList = document.getElementById('backup-list');
+            backupList.innerHTML = '';
+            
+            backups.forEach(backup => {
+                const age = getBackupAge(backup.timestamp);
+                const cardClass = getBackupCardClass(backup);
+                
+                const card = document.createElement('div');
+                card.className = 'col-md-6 col-lg-4 mb-3';
+                card.innerHTML = `
+                    <div class="card backup-card ${cardClass}">
+                        <div class="card-header d-flex justify-content-between align-items-center">
+                            <div>
+                                <span class="fw-bold">${backup.name}</span>
+                                <span class="badge ${backup.type === 'incremental' ? 'bg-primary' : backup.type === 'full' ? 'bg-success' : 'bg-secondary'} ms-2">
+                                    ${backup.type === 'incremental' ? '増分' : backup.type === 'full' ? 'フル' : backup.type}
+                                </span>
+                            </div>
+                            <span class="badge status-badge bg-${getStatusColor(backup.status)}">${backup.status}</span>
+                        </div>
+                        <div class="card-body">
+                            <p class="card-text mb-2">
+                                <small class="text-muted">
+                                    <i class="fas fa-clock me-1"></i>${formatDate(backup.timestamp)}
+                                    <br><i class="fas fa-hdd me-1"></i>${getSizeDisplay(backup)}
+                                    ${getEfficiencyDisplay(backup)}
+                                </small>
+                            </p>
+                            ${backup.description ? `<p class="card-text">${backup.description}</p>` : ''}
+                            <div class="d-flex flex-wrap">
+                                <button class="btn btn-sm btn-primary backup-action-btn" 
+                                        onclick="prepareRestore('${backup.backup_id}', '${backup.name}', '${backup.timestamp}')">
+                                    <i class="fas fa-undo me-1"></i>復元
+                                </button>
+                                <button class="btn btn-sm btn-info backup-action-btn" 
+                                        onclick="verifyBackup('${backup.backup_id}')">
+                                    <i class="fas fa-check me-1"></i>検証
+                                </button>
+                                <button class="btn btn-sm btn-warning backup-action-btn" 
+                                        onclick="downloadBackup('${backup.backup_id}')">
+                                    <i class="fas fa-download me-1"></i>DL
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                `;
+                backupList.appendChild(card);
+            });
+        }
+        
+        // バックアップ作成
+        async function createBackup() {
+            const name = document.getElementById('backup-name').value.trim();
+            const description = document.getElementById('backup-description').value.trim();
+            
+            if (!name) {
+                showAlert('バックアップ名を入力してください', 'warning');
+                return;
+            }
+            
+            showProgress('バックアップを作成中...');
+            
+            try {
+                const response = await fetch('/api/backup/create', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        name: name,
+                        description: description,
+                        type: 'incremental'  // Web UIからは常に増分バックアップ
+                    })
+                });
+                
+                const data = await response.json();
+                hideProgress();
+                
+                if (data.success) {
+                    showAlert('バックアップが作成されました', 'success');
+                    document.getElementById('backup-name').value = '';
+                    document.getElementById('backup-description').value = '';
+                    loadBackupList();
+                    loadStatistics();
+                    
+                    // 監視システムに操作完了を通知
+                    if (window.notifyBackupOperationComplete) {
+                        window.notifyBackupOperationComplete('create');
+                    }
+                } else {
+                    showAlert('バックアップの作成に失敗しました: ' + data.message, 'danger');
+                }
+            } catch (error) {
+                hideProgress();
+                showAlert('バックアップの作成に失敗しました: ' + error.message, 'danger');
+            }
+        }
+        
+        // 復元準備
+        function prepareRestore(backupId, backupName, timestamp) {
+            currentBackupId = backupId;
+            document.getElementById('restore-backup-name').textContent = backupName;
+            document.getElementById('restore-backup-date').textContent = formatDate(timestamp);
+            
+            const restoreModal = new bootstrap.Modal(document.getElementById('restoreModal'));
+            restoreModal.show();
+        }
+        
+        // 復元実行
+        async function executeRestore() {
+            if (!currentBackupId) return;
+            
+            const restoreType = document.getElementById('restore-type').value;
+            
+            showProgress('復元を実行中...');
+            bootstrap.Modal.getInstance(document.getElementById('restoreModal')).hide();
+            
+            try {
+                const response = await fetch('/api/backup/restore', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        backup_id: currentBackupId,
+                        restore_type: restoreType
+                    })
+                });
+                
+                const data = await response.json();
+                hideProgress();
+                
+                if (data.success) {
+                    showAlert('復元が完了しました。システムを再起動することをお勧めします。', 'success');
+                    
+                    // 監視システムに操作完了を通知
+                    if (window.notifyBackupOperationComplete) {
+                        window.notifyBackupOperationComplete('restore');
+                    }
+                } else {
+                    showAlert('復元に失敗しました: ' + data.message, 'danger');
+                }
+            } catch (error) {
+                hideProgress();
+                showAlert('復元に失敗しました: ' + error.message, 'danger');
+            }
+        }
+        
+        // バックアップ検証
+        async function verifyBackup(backupId) {
+            showProgress('バックアップを検証中...');
+            
+            try {
+                const response = await fetch(`/api/backup/verify/${backupId}`);
+                const data = await response.json();
+                hideProgress();
+                
+                if (data.success) {
+                    showAlert('バックアップの検証が完了しました', 'success');
+                } else {
+                    showAlert('バックアップの検証に失敗しました: ' + data.message, 'warning');
+                }
+            } catch (error) {
+                hideProgress();
+                showAlert('検証エラー: ' + error.message, 'danger');
+            }
+        }
+        
+        // バックアップダウンロード
+        async function downloadBackup(backupId) {
+            try {
+                showAlert('バックアップのダウンロード準備中...', 'info');
+                
+                // ダウンロードリンクを作成して自動クリック
+                const downloadUrl = `/api/backup/download/${backupId}`;
+                const link = document.createElement('a');
+                link.href = downloadUrl;
+                link.download = `${backupId}.tar`;
+                link.style.display = 'none';
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+                
+                // 成功メッセージは少し遅らせて表示
+                setTimeout(() => {
+                    showAlert('バックアップのダウンロードを開始しました', 'success');
+                }, 1000);
+                
+            } catch (error) {
+                showAlert('ダウンロードエラー: ' + error.message, 'danger');
+            }
+        }
+        
+        // 古いバックアップ削除
+        async function cleanupOldBackups() {
+            if (!confirm('保持期間を過ぎた古いバックアップを削除しますか？')) return;
+            
+            showProgress('古いバックアップを削除中...');
+            
+            try {
+                const response = await fetch('/api/backup/cleanup', { method: 'POST' });
+                const data = await response.json();
+                hideProgress();
+                
+                if (data.success) {
+                    showAlert(`${data.data.deleted_count}個の古いバックアップを削除しました`, 'success');
+                    loadBackupList();
+                    loadStatistics();
+                    
+                    // 監視システムに操作完了を通知
+                    if (window.notifyBackupOperationComplete) {
+                        window.notifyBackupOperationComplete('cleanup');
+                    }
+                } else {
+                    showAlert('削除に失敗しました: ' + data.message, 'danger');
+                }
+            } catch (error) {
+                hideProgress();
+                showAlert('削除エラー: ' + error.message, 'danger');
+            }
+        }
+        
+        // ヘルパー関数
+        function getBackupCardClass(backup) {
+            if (backup.type === 'manual') return 'manual';
+            
+            const age = Date.now() - new Date(backup.timestamp).getTime();
+            const oneDayMs = 24 * 60 * 60 * 1000;
+            
+            return age < oneDayMs ? 'recent' : 'old';
+        }
+        
+        function getStatusColor(status) {
+            switch(status) {
+                case 'completed': return 'success';
+                case 'failed': return 'danger';
+                case 'running': return 'primary';
+                default: return 'secondary';
+            }
+        }
+        
+        function formatDate(timestamp) {
+            return new Date(timestamp).toLocaleString('ja-JP');
+        }
+        
+        function getBackupAge(timestamp) {
+            const age = Date.now() - new Date(timestamp).getTime();
+            const days = Math.floor(age / (1000 * 60 * 60 * 24));
+            return days === 0 ? '今日' : `${days}日前`;
+        }
+        
+        function getSizeDisplay(backup) {
+            // 増分バックアップの場合は転送サイズを重視
+            if (backup.type === 'incremental' && backup.transferred_size_formatted !== undefined) {
+                if (backup.transferred_size_bytes === 0) {
+                    return `転送: なし (論理: ${backup.size_formatted || 'サイズ不明'})`;
+                } else {
+                    return `転送: ${backup.transferred_size_formatted} (論理: ${backup.size_formatted || 'サイズ不明'})`;
+                }
+            }
+            // フルバックアップまたは転送サイズ情報がない場合
+            return backup.size_formatted || 'サイズ不明';
+        }
+        
+        function getEfficiencyDisplay(backup) {
+            if (backup.type === 'incremental' && backup.efficiency_percent !== undefined) {
+                const efficiency = backup.efficiency_percent;
+                const color = efficiency >= 95 ? 'success' : efficiency >= 80 ? 'warning' : 'danger';
+                return `<br><span class="badge bg-${color}">効率: ${efficiency}%</span>`;
+            }
+            return '';
+        }
+        
+        function showProgress(message) {
+            document.getElementById('progress-wrapper').style.display = 'block';
+            document.getElementById('operation-status').textContent = message;
+            document.getElementById('progress-bar').style.width = '100%';
+        }
+        
+        function hideProgress() {
+            document.getElementById('progress-wrapper').style.display = 'none';
+            document.getElementById('progress-bar').style.width = '0%';
+        }
+        
+        function showAlert(message, type) {
+            const alertDiv = document.createElement('div');
+            alertDiv.className = `alert alert-${type} alert-dismissible fade show mt-3`;
+            alertDiv.innerHTML = `
+                ${message}
+                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+            `;
+            document.querySelector('.container-fluid').insertBefore(alertDiv, document.querySelector('.row'));
+            
+            setTimeout(() => alertDiv.remove(), 5000);
+        }
+        
+        function refreshBackupList() {
+            loadBackupList();
+            loadStatistics();
+            showAlert('一覧を更新しました', 'info');
+        }
+        
+        function filterBackups() {
+            // フィルタリング機能は将来実装
+            console.log('フィルタリング機能は将来実装予定');
+        }
+        
+        function showScheduleStatus() {
+            // スケジュール状況表示は将来実装
+            showAlert('スケジュール状況: 日次バックアップ 04:00 (有効)', 'info');
+        }
+        
+        async function verifyAllBackups() {
+            showProgress('全バックアップを検証中...');
+            
+            try {
+                const response = await fetch('/api/backup/verify', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ verify_all: true })
+                });
+                
+                const data = await response.json();
+                hideProgress();
+                
+                if (data.success) {
+                    const results = data.data || {};
+                    const verified = results.verified_count || 0;
+                    const failed = results.failed_count || 0;
+                    const total = verified + failed;
+                    
+                    showAlert(
+                        `検証完了: ${total}個中${verified}個が正常、${failed}個が異常`,
+                        failed > 0 ? 'warning' : 'success'
+                    );
+                } else {
+                    showAlert(`検証エラー: ${data.error || 'unknown error'}`, 'danger');
+                }
+            } catch (error) {
+                hideProgress();
+                console.error('Verification failed:', error);
+                showAlert('検証に失敗しました: ' + error.message, 'danger');
+            }
+        }
+        
+        async function cleanupOldBackups() {
+            if (!confirm('古いバックアップを削除しますか？この操作は元に戻せません。')) {
+                return;
+            }
+            
+            showProgress('古いバックアップを削除中...');
+            
+            try {
+                const response = await fetch('/api/backup/cleanup', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ auto_cleanup: true })
+                });
+                
+                const data = await response.json();
+                hideProgress();
+                
+                if (data.success) {
+                    const results = data.data || {};
+                    const deleted = results.deleted_count || 0;
+                    
+                    showAlert(`クリーンアップ完了: ${deleted}個の古いバックアップを削除`, 'success');
+                    loadBackupList();
+                    loadStatistics();
+                } else {
+                    showAlert(`クリーンアップエラー: ${data.error || 'unknown error'}`, 'danger');
+                }
+            } catch (error) {
+                hideProgress();
+                console.error('Cleanup failed:', error);
+                showAlert('クリーンアップに失敗しました: ' + error.message, 'danger');
+            }
+        }
+    </script>
+</body>
+</html>

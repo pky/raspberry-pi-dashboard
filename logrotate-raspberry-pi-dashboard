@@ -1,0 +1,37 @@
+# アクティブログファイル統一設定（1日1回・3日保存）
+# metrics.jsonは内部クリーンアップ機能（7日）により自動管理
+/path/to/raspberry-pi-dashboard/logs/dashboard.log
+/path/to/raspberry-pi-dashboard/logs/dashboard_error.log
+/path/to/raspberry-pi-dashboard/logs/dashboard_performance.log
+/path/to/raspberry-pi-dashboard/logs/sensor.log
+/path/to/raspberry-pi-dashboard/logs/api_monitor.log
+/path/to/raspberry-pi-dashboard/logs/monitor_cron.log
+/path/to/raspberry-pi-dashboard/logs/collector_cron.log
+/path/to/raspberry-pi-dashboard/logs/test_run.log
+/path/to/raspberry-pi-dashboard/reports/test_results.json
+# 重複ログファイルは削除済み（metrics.json統一システムにより不要）
+# /path/to/raspberry-pi-dashboard/logs/co2_data.db
+# /path/to/raspberry-pi-dashboard/logs/co2_data_*.json
+# /path/to/raspberry-pi-dashboard/logs/temp_humidity_data_*.json
+/path/to/raspberry-pi-dashboard/logs/daily_test_*.log {
+    daily
+    missingok
+    rotate 3
+    compress
+    delaycompress
+    copytruncate
+    notifempty
+    create 0644 pi pi
+}
+
+# 動的ログファイル（3日保存）
+/path/to/raspberry-pi-dashboard/logs/stability_*.log {
+    daily
+    missingok
+    rotate 3
+    compress
+    delaycompress
+    copytruncate
+    notifempty
+    create 0644 pi pi
+}
