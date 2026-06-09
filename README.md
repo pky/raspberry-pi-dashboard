@@ -96,9 +96,7 @@ FLASK_PORT=5000
 FLASK_DEBUG=False
 SECRET_KEY=your-secret-key-here
 
-# Google Calendar
-GOOGLE_CREDENTIALS_FILE=credentials/credentials.json
-GOOGLE_TOKEN_FILE=credentials/token.json
+# Google Calendar（認証キーは credentials/service-account-key.json に配置）
 GOOGLE_CALENDAR_ID=primary
 GOOGLE_ADDITIONAL_CALENDAR_IDS=  # カンマ区切りで追加カレンダーIDを指定（家族共有カレンダー等）
 
