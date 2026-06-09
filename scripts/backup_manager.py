@@ -76,6 +76,22 @@ class BackupManager:
                         config_file=str(self.config_file),
                         backup_directory=str(self.backup_base_dir))
     
+    def _apply_env_overrides(self, config: Dict[str, Any]) -> Dict[str, Any]:
+        """環境変数で設定値を上書き"""
+        lb = config.setdefault('local_backup', {})
+        if val := os.environ.get('BACKUP_BASE_DIR'):
+            lb['base_directory'] = val
+        if val := os.environ.get('BACKUP_MAX_BACKUPS'):
+            lb['max_backups'] = int(val)
+        if val := os.environ.get('BACKUP_RETENTION_DAYS'):
+            lb['full_retention_days'] = int(val)
+            lb['incremental_retention_days'] = int(val)
+        if val := os.environ.get('BACKUP_FULL_RETENTION_DAYS'):
+            lb['full_retention_days'] = int(val)
+        if val := os.environ.get('BACKUP_INCREMENTAL_RETENTION_DAYS'):
+            lb['incremental_retention_days'] = int(val)
+        return config
+
     def _expand_home_in_config(self, obj):
         """設定値の ~ をホームディレクトリに再帰展開"""
         if isinstance(obj, str):
@@ -97,6 +113,9 @@ class BackupManager:
 
             # ~ をホームディレクトリに展開
             config = self._expand_home_in_config(config)
+
+            # 環境変数で上書き
+            config = self._apply_env_overrides(config)
 
             # 必要な設定項目の検証
             required_sections = ['backup', 'local_backup', 'source', 'system']

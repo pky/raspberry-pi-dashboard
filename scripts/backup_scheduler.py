@@ -18,6 +18,8 @@ from pathlib import Path
 
 # バックアップマネージャー読み込み
 sys.path.append(str(Path(__file__).parent.parent))
+from dotenv import load_dotenv
+load_dotenv(Path(__file__).parent.parent / '.env')
 from scripts.backup_manager import BackupManager, BackupError
 from logging_system import get_logger
 

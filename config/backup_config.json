@@ -40,22 +40,6 @@
       "*.tmp"
     ]
   },
-  "external_backup": {
-    "nas": {
-      "enabled": true,
-      "server": "your-nas.local",
-      "share": "backup",
-      "mount_point": "/mnt/nas_backup",
-      "username": "backup",
-      "password": "backup",
-      "remote_directory": "raspberry-pi-home"
-    },
-    "usb": {
-      "enabled": false,
-      "mount_point": "/mnt/usb_backup",
-      "auto_detect": true
-    }
-  },
   "scheduling": {
     "daily": {
       "enabled": true,
