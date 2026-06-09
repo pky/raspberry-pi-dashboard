@@ -580,6 +580,11 @@ class BackupManager:
         metadata_modified = False
 
         try:
+            # _reload_metadata を1回だけ呼び、以降は self.metadata を直接操作する
+            # （list_backups は内部で _reload_metadata を呼ぶため、ループ内で使うと
+            #   前の反復での削除がディスク未保存のまま上書きされてしまう）
+            self._reload_metadata()
+
             for backup_type in ['incremental', 'full']:
                 # タイプ別保持期間
                 retention_days = full_retention_days if backup_type == 'full' else incremental_retention_days
@@ -588,7 +593,12 @@ class BackupManager:
                 self.logger.info(f"{backup_type}バックアップクリーンアップ開始",
                                retention_days=retention_days)
 
-                backups = self.list_backups(backup_type=backup_type)
+                # list_backups を使わず現在のメタデータを直接フィルタ・ソート
+                backups = sorted(
+                    [b for b in self.metadata['backups'] if b.get('type') == backup_type],
+                    key=lambda x: x.get('timestamp', ''),
+                    reverse=True
+                )
 
                 # 件数制限による削除
                 if len(backups) > max_backups:
@@ -598,25 +608,17 @@ class BackupManager:
                         raw_path = backup.get('path')
                         if raw_path:
                             backup_path = Path(raw_path)
-                        else:
-                            # pathなし（失敗バックアップ等）はメタデータのみ削除
-                            self.metadata['backups'] = [
-                                b for b in self.metadata['backups']
-                                if b['backup_id'] != backup['backup_id']
-                            ]
-                            metadata_modified = True
-                            continue
-                        if backup_path.exists():
-                            size = backup.get('size_bytes', 0)
-                            shutil.rmtree(backup_path)
-                            cleanup_count += 1
-                            cleanup_size += size
-                        else:
-                            self.logger.warning(f"{backup_type}バックアップファイル未発見（メタデータのみ削除）",
-                                              backup_id=backup['backup_id'],
-                                              path=str(backup_path))
+                            if backup_path.exists():
+                                size = backup.get('size_bytes', 0)
+                                shutil.rmtree(backup_path)
+                                cleanup_count += 1
+                                cleanup_size += size
+                            else:
+                                self.logger.warning(f"{backup_type}バックアップファイル未発見（メタデータのみ削除）",
+                                                  backup_id=backup['backup_id'],
+                                                  path=str(backup_path))
 
-                        # ファイル存在に関係なく、メタデータからは削除
+                        # path の有無・存在に関係なくメタデータから削除
                         self.metadata['backups'] = [
                             b for b in self.metadata['backups']
                             if b['backup_id'] != backup['backup_id']
@@ -625,13 +627,16 @@ class BackupManager:
 
                 # 保持期間による削除
                 for backup in backups:
+                    # 件数制限で既に削除済みのエントリはスキップ
+                    if not any(b['backup_id'] == backup['backup_id'] for b in self.metadata['backups']):
+                        continue
+
                     backup_date = datetime.fromisoformat(backup['timestamp'].replace('Z', '+00:00'))
                     if backup_date < cutoff_date:
                         raw_path = backup.get('path')
                         backup_path = Path(raw_path) if raw_path else None
                         size = backup.get('size_bytes', 0)
 
-                        # ファイルが存在する場合は物理削除
                         if backup_path and backup_path.exists():
                             shutil.rmtree(backup_path)
                             cleanup_count += 1
@@ -644,7 +649,6 @@ class BackupManager:
                                               backup_id=backup['backup_id'],
                                               path=str(backup_path))
 
-                        # ファイル存在に関係なく、メタデータからは削除
                         self.metadata['backups'] = [
                             b for b in self.metadata['backups']
                             if b['backup_id'] != backup['backup_id']
