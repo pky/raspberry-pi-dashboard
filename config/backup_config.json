@@ -15,12 +15,11 @@
     "rsync_options": [
       "--archive",
       "--verbose",
-      "--delete",
-      "--exclude-from=/home/pi/projects/raspberry-pi-dashboard/exclude_patterns.txt"
+      "--delete"
     ]
   },
   "source": {
-    "home_directory": "/home/pi/projects/raspberry-pi-dashboard",
+    "home_directory": "~/projects/raspberry-pi-dashboard",
     "system_configs": [
       "/etc/systemd/system/raspberry-pi-*.service",
       "/etc/logrotate.d/raspberry-pi-dashboard"

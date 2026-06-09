@@ -76,6 +76,16 @@ class BackupManager:
                         config_file=str(self.config_file),
                         backup_directory=str(self.backup_base_dir))
     
+    def _expand_home_in_config(self, obj):
+        """設定値の ~ をホームディレクトリに再帰展開"""
+        if isinstance(obj, str):
+            return str(Path(obj).expanduser()) if obj.startswith('~') else obj
+        if isinstance(obj, dict):
+            return {k: self._expand_home_in_config(v) for k, v in obj.items()}
+        if isinstance(obj, list):
+            return [self._expand_home_in_config(v) for v in obj]
+        return obj
+
     def _load_config(self) -> Dict[str, Any]:
         """設定ファイル読み込み・検証"""
         if not self.config_file.exists():
@@ -84,14 +94,17 @@ class BackupManager:
         try:
             with open(self.config_file, 'r', encoding='utf-8') as f:
                 config = json.load(f)
-            
+
+            # ~ をホームディレクトリに展開
+            config = self._expand_home_in_config(config)
+
             # 必要な設定項目の検証
             required_sections = ['backup', 'local_backup', 'source', 'system']
             for section in required_sections:
                 if section not in config:
                     raise BackupError(f"設定ファイルに必要なセクションがありません: {section}")
-            
-            self.logger.success("設定ファイル読み込み完了", 
+
+            self.logger.success("設定ファイル読み込み完了",
                                config_sections=list(config.keys()))
             return config
             
@@ -564,51 +577,40 @@ class BackupManager:
         
         cleanup_count = 0
         cleanup_size = 0
-        
+        metadata_modified = False
+
         try:
             for backup_type in ['incremental', 'full']:
                 # タイプ別保持期間
                 retention_days = full_retention_days if backup_type == 'full' else incremental_retention_days
                 cutoff_date = datetime.now() - timedelta(days=retention_days)
-                
-                self.logger.info(f"{backup_type}バックアップクリーンアップ開始", 
+
+                self.logger.info(f"{backup_type}バックアップクリーンアップ開始",
                                retention_days=retention_days)
-                
+
                 backups = self.list_backups(backup_type=backup_type)
-                
+
                 # 件数制限による削除
                 if len(backups) > max_backups:
                     old_backups = backups[max_backups:]
-                    
+
                     for backup in old_backups:
-                        backup_path = Path(backup['path'])
+                        raw_path = backup.get('path')
+                        if raw_path:
+                            backup_path = Path(raw_path)
+                        else:
+                            # pathなし（失敗バックアップ等）はメタデータのみ削除
+                            self.metadata['backups'] = [
+                                b for b in self.metadata['backups']
+                                if b['backup_id'] != backup['backup_id']
+                            ]
+                            metadata_modified = True
+                            continue
                         if backup_path.exists():
                             size = backup.get('size_bytes', 0)
                             shutil.rmtree(backup_path)
                             cleanup_count += 1
                             cleanup_size += size
-                            
-                            # メタデータからも削除
-                            self.metadata['backups'] = [
-                                b for b in self.metadata['backups'] 
-                                if b['backup_id'] != backup['backup_id']
-                            ]
-                
-                # 保持期間による削除
-                for backup in backups:
-                    backup_date = datetime.fromisoformat(backup['timestamp'].replace('Z', '+00:00'))
-                    if backup_date < cutoff_date:
-                        backup_path = Path(backup['path'])
-                        size = backup.get('size_bytes', 0)
-
-                        # ファイルが存在する場合は物理削除
-                        if backup_path.exists():
-                            shutil.rmtree(backup_path)
-                            cleanup_count += 1
-                            cleanup_size += size
-                            self.logger.info(f"{backup_type}バックアップ削除（保持期間超過）",
-                                           backup_id=backup['backup_id'],
-                                           age_days=(datetime.now() - backup_date).days)
                         else:
                             self.logger.warning(f"{backup_type}バックアップファイル未発見（メタデータのみ削除）",
                                               backup_id=backup['backup_id'],
@@ -619,11 +621,40 @@ class BackupManager:
                             b for b in self.metadata['backups']
                             if b['backup_id'] != backup['backup_id']
                         ]
-            
-            # メタデータ保存
-            if cleanup_count > 0:
+                        metadata_modified = True
+
+                # 保持期間による削除
+                for backup in backups:
+                    backup_date = datetime.fromisoformat(backup['timestamp'].replace('Z', '+00:00'))
+                    if backup_date < cutoff_date:
+                        raw_path = backup.get('path')
+                        backup_path = Path(raw_path) if raw_path else None
+                        size = backup.get('size_bytes', 0)
+
+                        # ファイルが存在する場合は物理削除
+                        if backup_path and backup_path.exists():
+                            shutil.rmtree(backup_path)
+                            cleanup_count += 1
+                            cleanup_size += size
+                            self.logger.info(f"{backup_type}バックアップ削除（保持期間超過）",
+                                           backup_id=backup['backup_id'],
+                                           age_days=(datetime.now() - backup_date).days)
+                        elif backup_path:
+                            self.logger.warning(f"{backup_type}バックアップファイル未発見（メタデータのみ削除）",
+                                              backup_id=backup['backup_id'],
+                                              path=str(backup_path))
+
+                        # ファイル存在に関係なく、メタデータからは削除
+                        self.metadata['backups'] = [
+                            b for b in self.metadata['backups']
+                            if b['backup_id'] != backup['backup_id']
+                        ]
+                        metadata_modified = True
+
+            # メタデータ保存（物理削除・孤立エントリ削除いずれかがあれば保存）
+            if metadata_modified:
                 self._save_metadata(self.metadata)
-                
+
                 self.logger.success("古いバックアップクリーンアップ完了",
                                   deleted_count=cleanup_count,
                                   freed_mb=round(cleanup_size / 1024 / 1024, 2))
