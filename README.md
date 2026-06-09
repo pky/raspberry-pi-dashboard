@@ -138,7 +138,13 @@ LOG_BACKUP_COUNT=5
 
 ### Google Calendar 認証
 
-Google Cloud Console でプロジェクトを作成し、OAuth2 クライアント認証情報をダウンロードして `credentials/credentials.json` に配置してください。
+サービスアカウント認証を使用します（OAuth2 の 7 日間トークン期限切れ問題を回避するため）。
+
+1. [Google Cloud Console](https://console.cloud.google.com/) でプロジェクトを作成し、**Google Calendar API** を有効化
+2. 「IAM と管理」→「サービスアカウント」でサービスアカウントを作成
+3. 作成したサービスアカウントの「キー」→「鍵を追加」→ JSON 形式でダウンロード
+4. ダウンロードしたファイルを `credentials/service-account-key.json` として配置
+5. Google Calendar の設定画面でサービスアカウントのメールアドレス（`xxx@xxx.iam.gserviceaccount.com`）をカレンダーの「特定のユーザーとの共有」に追加（権限: 予定の閲覧）
 
 ### 起動
 
