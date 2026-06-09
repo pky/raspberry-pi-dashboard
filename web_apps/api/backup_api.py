@@ -43,11 +43,9 @@ def get_backup_manager() -> BackupManager:
     
     if _backup_manager is None:
         try:
-            # 設定ファイルパス決定
-            config_path = None
-            if current_app:
-                config_path = os.path.join(current_app.root_path, "config", "backup_config.json")
-                logger.info("設定ファイルパス", config_path=config_path)
+            # 設定ファイルパス決定（プロジェクトルートの config/ を使用）
+            config_path = str(Path(__file__).resolve().parent.parent.parent / "config" / "backup_config.json")
+            logger.info("設定ファイルパス", config_path=config_path)
             else:
                 logger.warning("current_appが利用不可、デフォルト設定を使用")
             
