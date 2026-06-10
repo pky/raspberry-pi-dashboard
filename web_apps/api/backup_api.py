@@ -46,9 +46,6 @@ def get_backup_manager() -> BackupManager:
             # 設定ファイルパス決定（プロジェクトルートの config/ を使用）
             config_path = str(Path(__file__).resolve().parent.parent.parent / "config" / "backup_config.json")
             logger.info("設定ファイルパス", config_path=config_path)
-            else:
-                logger.warning("current_appが利用不可、デフォルト設定を使用")
-            
             logger.info("BackupManager初期化開始", config_path=config_path)
             _backup_manager = BackupManager(config_path)
             logger.success("バックアップマネージャー初期化完了")
