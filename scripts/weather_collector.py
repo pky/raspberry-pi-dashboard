@@ -57,7 +57,7 @@ class WeatherCollector:
         logger.info(f"Weather Collector初期化完了 - 出力先: {self.output_file}")
     
     def _load_api_key(self) -> str:
-        """API keyを既存weather_logic.pyと同じ方法で読み込む"""
+        """API keyを読み込む"""
         # 1. credentials/weather.confから読み込み
         config_path = f"{self.base_dir}/credentials/weather.conf"
         if os.path.exists(config_path):
@@ -70,14 +70,29 @@ class WeatherCollector:
                             return api_key
             except Exception as e:
                 logger.error(f"設定ファイル読み込みエラー: {e}")
-        
+
         # 2. 環境変数から読み込み
         api_key = os.getenv('OPENWEATHERMAP_API_KEY')
         if api_key:
             logger.info("API keyを環境変数から読み込み完了")
             return api_key
-        
-        # 3. APIキー未設定
+
+        # 3. .envファイルから直接読み込み（cronなど環境変数が読み込まれない場合）
+        env_path = f"{self.base_dir}/.env"
+        if os.path.exists(env_path):
+            try:
+                with open(env_path, 'r') as f:
+                    for line in f:
+                        stripped = line.strip()
+                        if stripped.startswith('OPENWEATHERMAP_API_KEY=') and not stripped.startswith('#'):
+                            api_key = stripped.split('=', 1)[1].strip('"\'')
+                            if api_key:
+                                logger.info("API keyを.envファイルから読み込み完了")
+                                return api_key
+            except Exception as e:
+                logger.error(f".envファイル読み込みエラー: {e}")
+
+        # 4. APIキー未設定
         logger.warning("OPENWEATHERMAP_API_KEY が設定されていません。credentials/weather.conf または .env に設定してください。")
         return ""
     
