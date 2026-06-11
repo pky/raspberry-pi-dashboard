@@ -19,7 +19,7 @@ logging.basicConfig(
 def main():
     cache = get_personal_events_cache()
     
-    self.logger.info("個人予定キャッシュ更新を開始します...")
+    logging.info("個人予定キャッシュ更新を開始します...")
     
     # 現在月の更新
     now = datetime.now()
@@ -43,24 +43,24 @@ def main():
         auth = GoogleCalendarAuth()
         
         if auth.load_credentials():
-            self.logger.info("📅 年月の個人予定も更新中...", next_year=next_year, next_month=next_month)
+            logging.info(f"📅 {next_year}年{next_month}月の個人予定も更新中...")
             next_success = cache.save_events(next_year, next_month, [])  # 簡易実装
         else:
-            self.logger.warning("Google Calendar認証が必要です")
+            logging.warning("Google Calendar認証が必要です")
             next_success = False
-            
+
     except Exception as e:
-        self.logger.error("翌月更新エラー:", e=e)
+        logging.error(f"翌月更新エラー: {e}")
         next_success = False
-    
+
     # 結果報告
     if current_success:
-        self.logger.success("年月の個人予定キャッシュを更新しました", year=now.year, month=now.month)
+        logging.info(f"{now.year}年{now.month}月の個人予定キャッシュを更新しました")
     else:
-        self.logger.warning("年月の更新に失敗しました", year=now.year, month=now.month)
-        self.logger.notice("Mac側で認証を実行してからもう一度お試しください")
-        self.logger.info("macOS: python3 auth/reauth_google_calendar_mac.py")
-        self.logger.info("転送: scp credentials/token.json pi@raspberrypi.local:/path/to/raspberry-pi-dashboard/credentials/")
+        logging.warning(f"{now.year}年{now.month}月の更新に失敗しました")
+        logging.info("Mac側で認証を実行してからもう一度お試しください")
+        logging.info("macOS: python3 auth/reauth_google_calendar_mac.py")
+        logging.info("転送: scp credentials/token.json pi@raspberrypi.local:~/projects/raspberry-pi-dashboard/credentials/")
     
     return 0 if current_success else 1
 

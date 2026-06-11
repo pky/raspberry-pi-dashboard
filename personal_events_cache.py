@@ -215,9 +215,9 @@ def get_personal_events_cache() -> PersonalEventsCache:
     return PersonalEventsCache(cache_dir=cache_dir)
 
 if __name__ == "__main__":
-    # 手動実行用
+    logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
     cache = get_personal_events_cache()
     if cache.update_cache_for_current_month():
-        self.logger.success("個人予定キャッシュを更新しました")
+        logger.info("個人予定キャッシュを更新しました")
     else:
-        self.logger.warning("個人予定キャッシュ更新に失敗しました")
+        logger.warning("個人予定キャッシュ更新に失敗しました")

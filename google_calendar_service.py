@@ -203,8 +203,8 @@ if __name__ == "__main__":
     service = get_google_calendar_service()
     if service.load_and_refresh_credentials():
         events = service.get_personal_events(2025, 8)
-        self.logger.success("8月の個人予定: {len(events)}件")
-        for event in events[:3]:  # 最初の3件を表示
-            self.logger.info("- {event['title']}")
+        logger.info(f"8月の個人予定: {len(events)}件")
+        for event in events[:3]:
+            logger.info(f"- {event['title']}")
     else:
-        self.logger.warning("認証に失敗しました")
+        logger.warning("認証に失敗しました")
