@@ -1,122 +1,84 @@
 """
-Configuration module for Raspberry Pi Dashboard
-Handles environment variables, GPIO settings, and API configuration
+アプリケーション設定
+pydantic-settings で .env を読み込み、起動時に必須値の存在を検証する。
+必須値が欠けている場合はここで即座にエラーになるため、
+「値が取れていないまま動き続ける」状態が起きない。
 """
 
-import os
-from dotenv import load_dotenv
+import sys
+from typing import List
+from pydantic import Field, computed_field
+from pydantic_settings import BaseSettings, SettingsConfigDict
 
-# Load environment variables from .env file
-load_dotenv()
 
-class Config:
-    """Main configuration class"""
-    
-    # Flask configuration
-    SECRET_KEY = os.environ.get('SECRET_KEY')
-    DEBUG = os.environ.get('FLASK_DEBUG', 'False').lower() == 'true'
-    HOST = os.environ.get('FLASK_HOST', '0.0.0.0')
-    PORT = int(os.environ.get('FLASK_PORT', 5000))
-    
-    # センサー設定（実測値強制モード）
-    SENSOR_FORCE_REAL_VALUES = True  # 必ずTrueに固定
-    SENSOR_MAX_RETRIES = 5  # 実測値取得最大試行回数
-    SENSOR_SIMULATION_MODE = False  # シミュレーションモード無効
-    
-    # DHT22 Sensor GPIO configuration
-    DHT22_PIN = int(os.environ.get('DHT22_PIN', 4))  # GPIO pin 4 by default
-    SENSOR_READ_TIMEOUT = int(os.environ.get('SENSOR_READ_TIMEOUT', 5))  # seconds
-    SENSOR_RETRY_COUNT = int(os.environ.get('SENSOR_RETRY_COUNT', 3))
-    SENSOR_MAX_RETRIES = int(os.environ.get('SENSOR_MAX_RETRIES', 3))
-    SENSOR_RETRY_DELAY = float(os.environ.get('SENSOR_RETRY_DELAY', 2.0))  # seconds
-    SENSOR_UPDATE_INTERVAL = int(os.environ.get('SENSOR_UPDATE_INTERVAL', 30))  # seconds
-    
-    # Google Calendar API configuration
-    GOOGLE_CALENDAR_ENABLED = os.environ.get('GOOGLE_CALENDAR_ENABLED', 'true').lower() == 'true'
-    GOOGLE_CREDENTIALS_FILE = os.environ.get('GOOGLE_CREDENTIALS_FILE', 'credentials/credentials.json')
-    GOOGLE_TOKEN_FILE = os.environ.get('GOOGLE_TOKEN_FILE', 'credentials/token.json')
-    GOOGLE_CALENDAR_ID = os.environ.get('GOOGLE_CALENDAR_ID', 'primary')
-    GOOGLE_ADDITIONAL_CALENDAR_IDS = [
-        cal_id.strip()
-        for cal_id in os.environ.get('GOOGLE_ADDITIONAL_CALENDAR_IDS', '').split(',')
-        if cal_id.strip()
-    ]
-    GOOGLE_SCOPES = ['https://www.googleapis.com/auth/calendar.readonly']
-    
-    # Dashboard display configuration
-    TIMEZONE = os.environ.get('TIMEZONE', 'Asia/Tokyo')
-    LANGUAGE = os.environ.get('LANGUAGE', 'ja')
-    
-    # Touch panel configuration
-    TOUCH_PANEL_WIDTH = int(os.environ.get('TOUCH_PANEL_WIDTH', 1024))
-    TOUCH_PANEL_HEIGHT = int(os.environ.get('TOUCH_PANEL_HEIGHT', 600))
-    
-    # Logging configuration
-    LOG_LEVEL = os.environ.get('LOG_LEVEL', 'INFO')
-    LOG_FILE = os.environ.get('LOG_FILE', 'logs/dashboard.log')
-    LOG_MAX_BYTES = int(os.environ.get('LOG_MAX_BYTES', 10485760))  # 10MB
-    LOG_BACKUP_COUNT = int(os.environ.get('LOG_BACKUP_COUNT', 5))
-    
-    # System configuration
-    AUTO_START_BROWSER = os.environ.get('AUTO_START_BROWSER', 'True').lower() == 'true'
-    BROWSER_KIOSK_MODE = os.environ.get('BROWSER_KIOSK_MODE', 'True').lower() == 'true'
-    
-    @staticmethod
-    def validate_config():
-        """Validate configuration settings"""
-        errors = []
+class Settings(BaseSettings):
+    model_config = SettingsConfigDict(
+        env_file='.env',
+        env_file_encoding='utf-8',
+        extra='ignore',
+        populate_by_name=True,
+    )
 
-        # Validate GPIO pin
-        if not (1 <= Config.DHT22_PIN <= 40):
-            errors.append(f"Invalid DHT22_PIN: {Config.DHT22_PIN}. Must be between 1-40")
+    # Flask
+    SECRET_KEY: str                         # 必須（未設定なら起動を拒否）
+    DEBUG: bool = Field(default=False, validation_alias='FLASK_DEBUG')
+    HOST: str  = Field(default='0.0.0.0',  validation_alias='FLASK_HOST')
+    PORT: int  = Field(default=5000,       validation_alias='FLASK_PORT')
 
-        # Validate credentials file path
-        if not os.path.exists(os.path.dirname(Config.GOOGLE_CREDENTIALS_FILE)):
-            errors.append(f"Credentials directory does not exist: {os.path.dirname(Config.GOOGLE_CREDENTIALS_FILE)}")
+    # センサー
+    SENSOR_FORCE_REAL_VALUES: bool = True
+    DHT22_PIN: int = 4
+    SENSOR_READ_TIMEOUT: int = 5
+    SENSOR_RETRY_COUNT: int = 3
+    SENSOR_MAX_RETRIES: int = 3
+    SENSOR_RETRY_DELAY: float = 2.0
+    SENSOR_UPDATE_INTERVAL: int = 30
 
-        # Validate log directory
-        if not os.path.exists(os.path.dirname(Config.LOG_FILE)):
-            errors.append(f"Log directory does not exist: {os.path.dirname(Config.LOG_FILE)}")
+    # Google Calendar
+    GOOGLE_CALENDAR_ENABLED: bool = True
+    GOOGLE_CREDENTIALS_FILE: str = 'credentials/credentials.json'
+    GOOGLE_TOKEN_FILE: str = 'credentials/token.json'
+    GOOGLE_CALENDAR_ID: str = 'primary'
+    GOOGLE_ADDITIONAL_CALENDAR_IDS_RAW: str = Field(default='', alias='GOOGLE_ADDITIONAL_CALENDAR_IDS')
+    GOOGLE_SCOPES: List[str] = ['https://www.googleapis.com/auth/calendar.readonly']
 
-        # Google Calendar 有効時: トークンファイルの存在確認
-        if Config.GOOGLE_CALENDAR_ENABLED and not os.path.exists(Config.GOOGLE_TOKEN_FILE):
-            errors.append(f"GOOGLE_CALENDAR_ENABLED=true ですが token ファイルが見つかりません: {Config.GOOGLE_TOKEN_FILE}")
+    @computed_field  # type: ignore[misc]
+    @property
+    def GOOGLE_ADDITIONAL_CALENDAR_IDS(self) -> List[str]:
+        return [x.strip() for x in self.GOOGLE_ADDITIONAL_CALENDAR_IDS_RAW.split(',') if x.strip()]
 
-        # 追加カレンダー未設定の通知（エラーではなく情報）
-        if Config.GOOGLE_CALENDAR_ENABLED and not Config.GOOGLE_ADDITIONAL_CALENDAR_IDS:
-            errors.append("INFO: GOOGLE_ADDITIONAL_CALENDAR_IDS が未設定です（primary のみ取得）。家族共有カレンダー等を追加する場合は .env に設定してください")
+    # 天気
+    OPENWEATHERMAP_API_KEY: str = ''        # 未設定なら天気機能が動かない（エラーにはしない）
+    WEATHER_LATITUDE: float = 35.652875
+    WEATHER_LONGITUDE: float = 139.701595
+    WEATHER_LOCATION_NAME: str = '渋谷区'
 
-        return errors
+    # 表示
+    TIMEZONE: str = 'Asia/Tokyo'
+    LANGUAGE: str = 'ja'
+    TOUCH_PANEL_WIDTH: int = 1024
+    TOUCH_PANEL_HEIGHT: int = 600
 
-# Development configuration
-class DevelopmentConfig(Config):
-    """Development environment configuration"""
-    DEBUG = True
-    
-# Production configuration  
-class ProductionConfig(Config):
-    """Production environment configuration"""
-    DEBUG = False
-    SECRET_KEY = os.environ.get('SECRET_KEY')
-    
-    @staticmethod
-    def validate_config():
-        """Additional production validation"""
-        errors = Config.validate_config()
-        
-        if not ProductionConfig.SECRET_KEY:
-            errors.append("SECRET_KEY must be set in production")
-            
-        return errors
+    # ログ
+    LOG_LEVEL: str = 'INFO'
+    LOG_FILE: str = 'logs/dashboard.log'
+    LOG_MAX_BYTES: int = 10485760
+    LOG_BACKUP_COUNT: int = 5
 
-# Configuration mapping
-config = {
-    'development': DevelopmentConfig,
-    'production': ProductionConfig,
-    'default': DevelopmentConfig
-}
+    # システム
+    AUTO_START_BROWSER: bool = True
+    BROWSER_KIOSK_MODE: bool = True
 
-def get_config():
-    """Get configuration based on environment"""
-    env = os.environ.get('FLASK_ENV', 'default')
-    return config.get(env, config['default'])
+
+try:
+    settings = Settings()
+except Exception as e:
+    print(f"[設定エラー] .env の必須値が不足しています: {e}", file=sys.stderr)
+    sys.exit(1)
+
+# 後方互換：既存コードの Config.XXX / get_config() をそのまま動かす
+Config = settings
+
+
+def get_config() -> Settings:
+    return settings

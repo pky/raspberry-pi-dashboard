@@ -20,9 +20,13 @@ import sys
 from pathlib import Path
 import requests
 import tempfile
-from datetime import datetime, timedelta
+from datetime import datetime
 import logging
-from typing import Dict, Any, Optional, List
+from typing import Dict, Any, Optional
+
+# プロジェクトルートを追加して config を参照できるようにする（cron 実行時も同様）
+sys.path.insert(0, str(Path(__file__).parent.parent))
+from config import Config
 
 # ログ設定
 logging.basicConfig(
@@ -35,14 +39,14 @@ class WeatherCollector:
     def __init__(self):
         self.base_dir = str(Path(__file__).parent.parent)
         self.output_file = f"{self.base_dir}/cache/weather/weather_data.json"
-        
-        # Location (configurable via .env)
-        self.latitude = float(os.environ.get('WEATHER_LATITUDE', '35.652875'))
-        self.longitude = float(os.environ.get('WEATHER_LONGITUDE', '139.701595'))
-        self.location_name = os.environ.get('WEATHER_LOCATION_NAME', '渋谷区鶯谷町')
-        
-        # API key読み込み
-        self.api_key = self._load_api_key()
+
+        self.latitude = Config.WEATHER_LATITUDE
+        self.longitude = Config.WEATHER_LONGITUDE
+        self.location_name = Config.WEATHER_LOCATION_NAME
+        self.api_key = Config.OPENWEATHERMAP_API_KEY
+
+        if not self.api_key:
+            logger.warning("OPENWEATHERMAP_API_KEY が設定されていません。.env に設定してください。")
         
         # 5-Day Forecast API URL
         self.forecast_api_url = (
@@ -55,46 +59,6 @@ class WeatherCollector:
         os.makedirs(os.path.dirname(self.output_file), exist_ok=True)
         
         logger.info(f"Weather Collector初期化完了 - 出力先: {self.output_file}")
-    
-    def _load_api_key(self) -> str:
-        """API keyを読み込む"""
-        # 1. credentials/weather.confから読み込み
-        config_path = f"{self.base_dir}/credentials/weather.conf"
-        if os.path.exists(config_path):
-            try:
-                with open(config_path, 'r') as f:
-                    for line in f:
-                        if line.strip().startswith('OPENWEATHERMAP_API_KEY='):
-                            api_key = line.strip().split('=', 1)[1].strip('"\'')
-                            logger.info("API keyを設定ファイルから読み込み完了")
-                            return api_key
-            except Exception as e:
-                logger.error(f"設定ファイル読み込みエラー: {e}")
-
-        # 2. 環境変数から読み込み
-        api_key = os.getenv('OPENWEATHERMAP_API_KEY')
-        if api_key:
-            logger.info("API keyを環境変数から読み込み完了")
-            return api_key
-
-        # 3. .envファイルから直接読み込み（cronなど環境変数が読み込まれない場合）
-        env_path = f"{self.base_dir}/.env"
-        if os.path.exists(env_path):
-            try:
-                with open(env_path, 'r') as f:
-                    for line in f:
-                        stripped = line.strip()
-                        if stripped.startswith('OPENWEATHERMAP_API_KEY=') and not stripped.startswith('#'):
-                            api_key = stripped.split('=', 1)[1].strip('"\'')
-                            if api_key:
-                                logger.info("API keyを.envファイルから読み込み完了")
-                                return api_key
-            except Exception as e:
-                logger.error(f".envファイル読み込みエラー: {e}")
-
-        # 4. APIキー未設定
-        logger.warning("OPENWEATHERMAP_API_KEY が設定されていません。credentials/weather.conf または .env に設定してください。")
-        return ""
     
     def _is_nighttime(self, target_time: datetime) -> bool:
         """指定時刻が夜間（18:00-6:00）かどうか判定"""
