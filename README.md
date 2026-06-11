@@ -81,6 +81,15 @@ source .venv/bin/activate
 pip install -r requirements.txt
 ```
 
+依存パッケージに `pydantic-settings` が含まれています。設定は起動時に検証され、**必須項目が未設定の場合はアプリが起動を拒否します**（`SECRET_KEY` など）。
+
+コミット前の静的解析 hook をセットアップする場合（推奨）：
+
+```bash
+pip install flake8
+bash scripts/setup/install_hooks.sh
+```
+
 ### 設定
 
 `.env.example` をコピーして `.env` を作成し、各値を設定してください。
@@ -89,50 +98,24 @@ pip install -r requirements.txt
 cp .env.example .env
 ```
 
+詳細は `.env.example` を参照してください。主要項目：
+
 ```env
-# Flask
-FLASK_HOST=0.0.0.0
-FLASK_PORT=5000
-FLASK_DEBUG=False
+# [必須] 未設定だと起動しない
 SECRET_KEY=your-secret-key-here
 
-# Google Calendar（認証キーは credentials/service-account-key.json に配置）
+# Google Calendar（認証トークンは credentials/token.json に配置）
 GOOGLE_CALENDAR_ID=primary
-GOOGLE_ADDITIONAL_CALENDAR_IDS=  # カンマ区切りで追加カレンダーIDを指定（例: id1@group.calendar.google.com,id2@group.calendar.google.com）
+GOOGLE_ADDITIONAL_CALENDAR_IDS=   # カンマ区切りで追加カレンダーID（家族共有等）
 
-# 天気予報
+# 天気予報（未設定だと天気が表示されない）
 OPENWEATHERMAP_API_KEY=your-openweathermap-api-key
-WEATHER_LOCATION_NAME=Your City
+WEATHER_LOCATION_NAME=渋谷区
 WEATHER_LATITUDE=35.652875
 WEATHER_LONGITUDE=139.701595
-
-# Tapo スマートプラグ（加湿器制御）
-TAPO_EMAIL=your-tapo-email@example.com
-TAPO_PASSWORD=your-tapo-password
-TAPO_IP=192.168.x.x
-
-# 加湿器制御しきい値
-HUMIDITY_ON_THRESHOLD=40   # この湿度以下で加湿器 ON
-HUMIDITY_OFF_THRESHOLD=55  # この湿度以上で加湿器 OFF
-HUMIDIFIER_QUIET_START=00:00
-HUMIDIFIER_QUIET_END=09:00
-HUMIDIFIER_QUIET_HOURS_ENABLED=true
-
-# センサー設定
-SENSOR_READ_TIMEOUT=5
-SENSOR_RETRY_COUNT=3
-SENSOR_UPDATE_INTERVAL=300
-
-# タイムゾーン・言語
-TIMEZONE=Asia/Tokyo
-LANGUAGE=ja
-
-# ログ設定
-LOG_LEVEL=INFO
-LOG_FILE=dashboard.log
-LOG_MAX_BYTES=10485760
-LOG_BACKUP_COUNT=5
 ```
+
+`[必須]` 以外の項目はすべてデフォルト値があるため、省略可能です。
 
 ### Google Calendar 認証
 

@@ -7,3 +7,4 @@ google-api-python-client==2.110.0
 adafruit-circuitpython-dht==4.0.9
 RPi.GPIO==0.7.1
 python-dotenv==1.0.0
+pydantic-settings>=2.0.0
