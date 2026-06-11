@@ -65,19 +65,27 @@ class Config:
     def validate_config():
         """Validate configuration settings"""
         errors = []
-        
+
         # Validate GPIO pin
         if not (1 <= Config.DHT22_PIN <= 40):
             errors.append(f"Invalid DHT22_PIN: {Config.DHT22_PIN}. Must be between 1-40")
-        
+
         # Validate credentials file path
         if not os.path.exists(os.path.dirname(Config.GOOGLE_CREDENTIALS_FILE)):
             errors.append(f"Credentials directory does not exist: {os.path.dirname(Config.GOOGLE_CREDENTIALS_FILE)}")
-        
+
         # Validate log directory
         if not os.path.exists(os.path.dirname(Config.LOG_FILE)):
             errors.append(f"Log directory does not exist: {os.path.dirname(Config.LOG_FILE)}")
-        
+
+        # Google Calendar 有効時: トークンファイルの存在確認
+        if Config.GOOGLE_CALENDAR_ENABLED and not os.path.exists(Config.GOOGLE_TOKEN_FILE):
+            errors.append(f"GOOGLE_CALENDAR_ENABLED=true ですが token ファイルが見つかりません: {Config.GOOGLE_TOKEN_FILE}")
+
+        # 追加カレンダー未設定の通知（エラーではなく情報）
+        if Config.GOOGLE_CALENDAR_ENABLED and not Config.GOOGLE_ADDITIONAL_CALENDAR_IDS:
+            errors.append("INFO: GOOGLE_ADDITIONAL_CALENDAR_IDS が未設定です（primary のみ取得）。家族共有カレンダー等を追加する場合は .env に設定してください")
+
         return errors
 
 # Development configuration

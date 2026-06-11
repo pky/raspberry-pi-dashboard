@@ -98,6 +98,7 @@ SECRET_KEY=your-secret-key-here
 
 # Google Calendar（認証キーは credentials/service-account-key.json に配置）
 GOOGLE_CALENDAR_ID=primary
+GOOGLE_ADDITIONAL_CALENDAR_IDS=  # カンマ区切りで追加カレンダーIDを指定（例: id1@group.calendar.google.com,id2@group.calendar.google.com）
 
 # 天気予報
 OPENWEATHERMAP_API_KEY=your-openweathermap-api-key

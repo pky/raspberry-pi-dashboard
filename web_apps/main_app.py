@@ -15,7 +15,8 @@ from pathlib import Path
 project_root = Path(__file__).parent.parent
 sys.path.append(str(project_root))
 
-from config import get_config
+import logging
+from config import get_config, Config
 from web_apps import register_all_blueprints
 
 def create_app():
@@ -37,6 +38,11 @@ def create_app():
     port = int(os.environ.get('FLASK_PORT', 5000))
     CORS(app, origins=['http://localhost:3000', 'http://127.0.0.1:3000', f'http://{config.HOST}:{port}'])
     
+    # 設定バリデーション（起動時に問題を早期検出）
+    _logger = logging.getLogger(__name__)
+    for msg in Config.validate_config():
+        _logger.warning("設定チェック: %s", msg)
+
     # Blueprint統合登録（Day4実装）
     register_all_blueprints(app)
     

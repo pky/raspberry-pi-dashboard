@@ -1,0 +1,17 @@
+#!/bin/bash
+# コミット前に .py ファイルの構文チェックと静的解析を実行する
+
+STAGED=$(git diff --cached --name-only --diff-filter=ACM | grep '\.py$')
+[ -z "$STAGED" ] && exit 0
+
+echo "=== 構文チェック ==="
+for f in $STAGED; do
+    python3 -m py_compile "$f" || { echo "SyntaxError: $f"; exit 1; }
+done
+echo "OK"
+
+if command -v flake8 &>/dev/null; then
+    echo "=== flake8 (未定義名・構文エラー) ==="
+    echo "$STAGED" | xargs flake8 --select=F --max-line-length=120 || exit 1
+    echo "OK"
+fi
