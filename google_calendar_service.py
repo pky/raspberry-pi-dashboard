@@ -6,11 +6,9 @@ refresh_tokenベースの永続認証
 
 import json
 import logging
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
-from typing import Optional, List, Dict, Any
-import os
-from logging_system import get_logger
+from typing import List, Dict
 
 try:
     from google.auth.transport.requests import Request
@@ -115,13 +113,16 @@ class GoogleCalendarService:
 
             events = events_result.get('items', [])
 
+            _JST = timezone(timedelta(hours=9))
+
             formatted_events = []
             for event in events:
                 # 開始日時を取得してdatetimeオブジェクトに変換
                 start_raw = event['start'].get('dateTime', event['start'].get('date'))
                 if 'T' in start_raw:
-                    # 時刻指定イベント: ISO形式をdatetimeに変換（timezone-naiveに統一）
-                    start_datetime = datetime.fromisoformat(start_raw.replace('Z', '+00:00')).replace(tzinfo=None)
+                    dt = datetime.fromisoformat(start_raw.replace('Z', '+00:00'))
+                    # タイムゾーン情報があれば JST に変換してから naive に
+                    start_datetime = dt.astimezone(_JST).replace(tzinfo=None) if dt.tzinfo else dt
                 else:
                     # 終日イベント: 日付のみをdatetimeに変換
                     start_datetime = datetime.strptime(start_raw, '%Y-%m-%d')
@@ -129,7 +130,8 @@ class GoogleCalendarService:
                 # 終了日時を取得してdatetimeオブジェクトに変換
                 end_raw = event['end'].get('dateTime', event['end'].get('date'))
                 if 'T' in end_raw:
-                    end_datetime = datetime.fromisoformat(end_raw.replace('Z', '+00:00')).replace(tzinfo=None)
+                    dt = datetime.fromisoformat(end_raw.replace('Z', '+00:00'))
+                    end_datetime = dt.astimezone(_JST).replace(tzinfo=None) if dt.tzinfo else dt
                 else:
                     end_datetime = datetime.strptime(end_raw, '%Y-%m-%d')
 

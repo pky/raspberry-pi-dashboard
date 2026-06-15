@@ -8,19 +8,16 @@ import sys
 import json
 import os
 import requests
-import calendar
-import time
-import threading
-from datetime import datetime, timedelta
+from datetime import datetime
 from calendar import Calendar
 from logging_system import get_logger
 from PyQt5.QtWidgets import (
-    QApplication, QMainWindow, QWidget, QVBoxLayout, QHBoxLayout, 
-    QLabel, QGridLayout, QFrame, QPushButton, QSizePolicy, QSpacerItem
+    QApplication, QMainWindow, QWidget, QVBoxLayout, QHBoxLayout,
+    QLabel, QGridLayout, QFrame, QPushButton, QSizePolicy, QSpacerItem,
+    QScrollArea
 )
 from PyQt5.QtCore import QTimer, Qt, QThread, pyqtSignal
-from PyQt5.QtGui import QFont, QPalette, QColor, QPainter, QFontMetrics, QFontDatabase
-from PyQt5.QtWidgets import QGraphicsDropShadowEffect
+from PyQt5.QtGui import QFont
 # Logic分離統一: Bridge importは削除、Logic classesを直接使用
 from logic.data_transformation_logic import DataTransformationLogic
 from logic.calculation_logic import CalculationLogic
@@ -100,11 +97,10 @@ class SensorDataThread(QThread):
                 self.data_updated.emit(dashboard_data)
                 
                 if latest_metric:
-                    self.logger.info("統一JSONファイルからセンサーデータ取得", 
-                                    temperature=temp, humidity=humidity, co2_ppm=co2_ppm,
-                                    metrics_file=metrics_file)
+                    self.logger.info("統一JSONファイルからセンサーデータ取得",
+                                    temperature=temp, humidity=humidity, co2_ppm=co2_ppm)
                 else:
-                    self.logger.warning("メトリクスデータが空です", metrics_file=metrics_file)
+                    self.logger.warning("メトリクスデータが空です")
                     
             except Exception as e:
                 self.logger.error(f"センサーデータ取得エラー: {e}")
@@ -293,6 +289,141 @@ class CalendarDataThread(QThread):
             except Exception:
                 pass
 
+class ClickableDayCell(QFrame):
+    """タップ可能なカレンダー日付セル"""
+    clicked = pyqtSignal(int, int, int)  # year, month, day
+
+    def __init__(self, year, month, day, parent=None):
+        super().__init__(parent)
+        self._year = year
+        self._month = month
+        self._day = day
+
+    def mousePressEvent(self, event):
+        if event.button() == Qt.LeftButton:
+            self.clicked.emit(self._year, self._month, self._day)
+        event.accept()
+
+
+class EventPopupOverlay(QWidget):
+    """メインウィンドウの子ウィジェットとして表示するオーバーレイ。
+    別ウィンドウを作らないのでタッチ入力グラブが発生しない。
+    """
+
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self.setVisible(False)
+        # カード内のコンテンツを差し替えるためのコンテナ
+        self._content_layout = None
+        self._build_skeleton()
+
+    def _build_skeleton(self):
+        """固定レイアウト骨格を構築（コンテンツは show_for_day で差し替え）"""
+        outer = QVBoxLayout(self)
+        outer.setContentsMargins(0, 0, 0, 0)
+        outer.setAlignment(Qt.AlignCenter)
+
+        self._card = QFrame(self)
+        self._card.setFixedWidth(420)
+        self._card.setStyleSheet(
+            "QFrame { background: #1e2a3a; border-radius: 16px;"
+            " border: 1px solid rgba(255,255,255,0.15); }"
+        )
+        card_layout = QVBoxLayout(self._card)
+        card_layout.setContentsMargins(24, 20, 24, 20)
+        card_layout.setSpacing(14)
+
+        # タイトル行
+        title_row = QHBoxLayout()
+        self._title_label = QLabel()
+        self._title_label.setStyleSheet(
+            "color: white; font-size: 24px; font-weight: bold;"
+            " background: transparent; border: none;"
+        )
+        title_row.addWidget(self._title_label)
+        title_row.addStretch()
+        close_btn = QPushButton("✕")
+        close_btn.setFixedSize(36, 36)
+        close_btn.setStyleSheet(
+            "QPushButton { background: rgba(255,255,255,0.1); color: white;"
+            " border-radius: 18px; font-size: 18px; border: none; }"
+            "QPushButton:pressed { background: rgba(255,255,255,0.3); }"
+        )
+        close_btn.clicked.connect(self._close)
+        title_row.addWidget(close_btn)
+        card_layout.addLayout(title_row)
+
+        sep = QFrame()
+        sep.setFrameShape(QFrame.HLine)
+        sep.setStyleSheet(
+            "background: rgba(255,255,255,0.2); border: none; max-height: 1px;"
+        )
+        card_layout.addWidget(sep)
+
+        # イベントリスト用スクロールエリア
+        self._scroll = QScrollArea()
+        self._scroll.setWidgetResizable(True)
+        self._scroll.setFrameShape(QFrame.NoFrame)
+        self._scroll.setStyleSheet("QScrollArea { background: transparent; border: none; }")
+        self._scroll.setMaximumHeight(420)
+        card_layout.addWidget(self._scroll)
+
+        outer.addWidget(self._card)
+
+    def show_for_day(self, year, month, day, events):
+        """表示内容を更新して表示する"""
+        weekday_names = ["月", "火", "水", "木", "金", "土", "日"]
+        import calendar as cal_mod
+        weekday = weekday_names[cal_mod.weekday(year, month, day)]
+        self._title_label.setText(f"{month}月{day}日（{weekday}）")
+
+        inner = QWidget()
+        inner.setStyleSheet("background: transparent;")
+        inner_layout = QVBoxLayout(inner)
+        inner_layout.setContentsMargins(0, 4, 0, 4)
+        inner_layout.setSpacing(8)
+
+        for ev in events:
+            ev_title = ev['title'] if isinstance(ev, dict) else str(ev)
+            time_str = ev.get('time_str') if isinstance(ev, dict) else None
+            is_holiday = ev.get('is_holiday', False) if isinstance(ev, dict) else False
+
+            title_color = "#ff9f9f" if is_holiday else "rgba(255,255,255,0.9)"
+            title_lbl = QLabel(f"• {ev_title}")
+            title_lbl.setStyleSheet(
+                f"color: {title_color}; font-size: 20px;"
+                " background: transparent; border: none;"
+            )
+            title_lbl.setWordWrap(True)
+            inner_layout.addWidget(title_lbl)
+
+            if time_str:
+                time_lbl = QLabel(f"   {time_str}")
+                time_lbl.setStyleSheet(
+                    "color: rgba(255,255,255,0.55); font-size: 17px;"
+                    " background: transparent; border: none;"
+                )
+                inner_layout.addWidget(time_lbl)
+
+        inner_layout.addStretch()
+        self._scroll.setWidget(inner)
+
+        # 親サイズに合わせてオーバーレイを広げ、最前面に出す
+        if self.parent():
+            self.setGeometry(self.parent().rect())
+        self.raise_()
+        self.setVisible(True)
+
+    def _close(self):
+        self.setVisible(False)
+
+    def mousePressEvent(self, event):
+        """カード外タップで閉じる"""
+        if not self._card.geometry().contains(event.pos()):
+            self._close()
+        event.accept()
+
+
 class WebExactDashboard(QMainWindow):
     def __init__(self):
         super().__init__()
@@ -341,6 +472,8 @@ class WebExactDashboard(QMainWindow):
         self.setup_styles()  # StyleLogic統合: 元のメソッド名を維持
         self.setup_fixed_weather_display()  # 固定配置天気バー初期化
         self.setup_stacked_navigation()  # QStackedWidget ナビゲーション初期化
+        # 予定ポップアップオーバーレイ（子ウィジェット・別ウィンドウなし）
+        self._popup_overlay = EventPopupOverlay(parent=self)
         self.start_updates()
         self.load_calendar_data()  # 初回カレンダーデータ読み込み  # 初回カレンダーデータ読み込み  # 初回カレンダーデータ読み込み  # 初回カレンダーデータ読み込み  # 初回カレンダーデータ読み込み
 
@@ -935,191 +1068,180 @@ class WebExactDashboard(QMainWindow):
         
         layout.addWidget(self.grid_container)
     
+    def _get_day_events(self, year, month, day):
+        """指定日の全予定リストを返す（祝日名 + 個人予定）
+        各要素は {'title': str, 'time_str': str|None, 'is_holiday': bool} の dict。
+        """
+        events = []
+        holiday_name = self.calendar_logic.get_holiday_name(year, month, day)
+        if holiday_name:
+            events.append({'title': holiday_name, 'time_str': None, 'is_holiday': True})
+        personal = self.personal_events.get((year, month, day))
+        if personal:
+            if isinstance(personal, list):
+                for ev in personal:
+                    if isinstance(ev, dict):
+                        title = ev.get('title', '予定')
+                        time_str = self._format_event_time(ev)
+                    else:
+                        title = str(ev)
+                        time_str = None
+                    events.append({'title': title, 'time_str': time_str, 'is_holiday': False})
+            else:
+                events.append({'title': str(personal), 'time_str': None, 'is_holiday': False})
+        return events
+
+    def _format_event_time(self, ev):
+        """イベント dict から表示用の時間文字列を返す。終日なら None。"""
+        if ev.get('all_day'):
+            return None
+        start = ev.get('start_datetime')
+        end = ev.get('end_datetime')
+        if start is None:
+            return None
+        # start_datetime は datetime オブジェクトまたは ISO 文字列の両方に対応
+        if isinstance(start, str):
+            try:
+                start = datetime.fromisoformat(start)
+            except ValueError:
+                return None
+        if isinstance(end, str):
+            try:
+                end = datetime.fromisoformat(end)
+            except ValueError:
+                end = None
+        start_str = start.strftime('%H:%M')
+        if end:
+            end_str = end.strftime('%H:%M')
+            return f"{start_str}〜{end_str}"
+        return start_str
+
+    def show_day_popup(self, year, month, day):
+        """日付タップ時に全予定オーバーレイを表示"""
+        events = self._get_day_events(year, month, day)
+        if not events:
+            return
+        self._popup_overlay.show_for_day(year, month, day, events)
+
     def update_calendar_display(self):
         """カレンダー表示更新"""
-        # 既存の日付セルを削除
+        # 既存の日付セルを削除（曜日ヘッダー行=0 は残す）
         for i in reversed(range(self.grid_layout.count())):
             item = self.grid_layout.itemAt(i)
             if item and item.widget():
-                widget = item.widget()
-                # 曜日ヘッダー以外を削除（行番号>0）
                 row, col, _, _ = self.grid_layout.getItemPosition(i)
                 if row > 0:
-                    widget.setParent(None)
-        
-        # 新しいカレンダー表示（前月・次月の日付込み）
+                    item.widget().setParent(None)
+
         now = datetime.now()
         cal = Calendar(firstweekday=6)  # 日曜日始まり
-        month_days = cal.monthdayscalendar(self.current_date.year, self.current_date.month)
-        
-        # 前月の日付を取得
-        prev_month = self.current_date.month - 1 if self.current_date.month > 1 else 12
-        prev_year = self.current_date.year if self.current_date.month > 1 else self.current_date.year - 1
+        year = self.current_date.year
+        month = self.current_date.month
+        month_days = cal.monthdayscalendar(year, month)
+
+        prev_month = month - 1 if month > 1 else 12
+        prev_year = year if month > 1 else year - 1
         prev_month_days = cal.monthdayscalendar(prev_year, prev_month)
-        
-        # 次月の日付を取得
-        next_month = self.current_date.month + 1 if self.current_date.month < 12 else 1
-        next_year = self.current_date.year if self.current_date.month < 12 else self.current_date.year + 1
+
+        next_month = month + 1 if month < 12 else 1
+        next_year = year if month < 12 else year + 1
         next_month_days = cal.monthdayscalendar(next_year, next_month)
-        
+
         for week_num, week in enumerate(month_days, 1):
             for day_num, day in enumerate(week):
-                day_widget = QFrame()
-                day_widget.setFixedSize(110, 100)  # セルサイズ拡大（95×85→110×100）
-                
-                day_layout = QVBoxLayout(day_widget)
-                day_layout.setContentsMargins(5, 5, 5, 5)
-                day_layout.setAlignment(Qt.AlignTop)
-                day_layout.setSpacing(2)
-                
                 if day == 0:
-                    # 前月または次月の日付を薄く表示
-                    other_month_day = None
-                    is_prev_month = False
-                    
-                    if week_num == 1:  # 最初の週：前月の日付
-                        if prev_month_days and len(prev_month_days) > 0:
-                            prev_week = prev_month_days[-1]
-                            if day_num < len(prev_week) and prev_week[day_num] > 0:
-                                other_month_day = prev_week[day_num]
-                                is_prev_month = True
-                    else:  # 最後の週：次月の日付
-                        if next_month_days and len(next_month_days) > 0:
-                            next_week = next_month_days[0]
-                            if day_num < len(next_week) and next_week[day_num] > 0:
-                                other_month_day = next_week[day_num]
-                                is_prev_month = False
-                    
-                    if other_month_day:
-                        day_label = QLabel(str(other_month_day))
-                        day_label.setAlignment(Qt.AlignCenter)
-                        day_label.setStyleSheet("font-family: 'Comfortaa', 'Quicksand', sans-serif; color: rgba(255, 255, 255, 0.6); font-size: 16px; font-weight: bold;")
-                        day_layout.addWidget(day_label)
-                    
+                    # 前月・次月の薄い日付表示（クリック不可）
+                    day_widget = QFrame()
+                    day_widget.setFixedSize(110, 100)
                     day_widget.setObjectName("calendar_day_empty")
+                    day_layout = QVBoxLayout(day_widget)
+                    day_layout.setContentsMargins(5, 5, 5, 5)
+                    day_layout.setAlignment(Qt.AlignTop)
+                    day_layout.setSpacing(2)
+
+                    other_day = None
+                    if week_num == 1 and prev_month_days:
+                        prev_week = prev_month_days[-1]
+                        if day_num < len(prev_week) and prev_week[day_num] > 0:
+                            other_day = prev_week[day_num]
+                    elif week_num > 1 and next_month_days:
+                        next_week = next_month_days[0]
+                        if day_num < len(next_week) and next_week[day_num] > 0:
+                            other_day = next_week[day_num]
+
+                    if other_day:
+                        lbl = QLabel(str(other_day))
+                        lbl.setAlignment(Qt.AlignCenter)
+                        lbl.setStyleSheet("font-family: 'Comfortaa', 'Quicksand', sans-serif; color: rgba(255, 255, 255, 0.6); font-size: 16px; font-weight: bold;")
+                        day_layout.addWidget(lbl)
                 else:
+                    # 七夕のデバッグ出力
+                    if month == 7 and day == 7:
+                        is_holiday_debug = self.calendar_logic.is_holiday(year, month, day)
+                        self.logger.info("🎋 七夕チェック: is_holiday=", is_holiday=is_holiday_debug)
+
+                    is_today = (day == now.day and month == now.month and year == now.year)
+                    is_holiday = self.calendar_logic.is_holiday(year, month, day)
+
+                    day_widget = ClickableDayCell(year, month, day)
+                    day_widget.setFixedSize(110, 100)
+                    day_layout = QVBoxLayout(day_widget)
+                    day_layout.setContentsMargins(5, 5, 5, 5)
+                    day_layout.setAlignment(Qt.AlignTop)
+                    day_layout.setSpacing(2)
+
+                    # 日付ラベルのスタイルを種別で切り替え
                     day_label = QLabel(str(day))
                     day_label.setAlignment(Qt.AlignCenter)
-                    
-                    # 条件判定
-                    is_today = (day == now.day and 
-                              self.current_date.month == now.month and 
-                              self.current_date.year == now.year)
-                    
-                    # Logic分離統一: CalendarLogicクラスで祝日判定
-                    is_holiday = self.calendar_logic.is_holiday(self.current_date.year, self.current_date.month, day)
-                    
-                    # 七夕のデバッグ出力
-                    if self.current_date.month == 7 and day == 7:
-                        self.logger.info("🎋 七夕チェック: is_holiday=", is_holiday=is_holiday)
-                    
+                    day_label.setFixedHeight(25)
+
                     if is_today:
                         day_widget.setObjectName("calendar_day_today")
                         day_label.setStyleSheet("font-family: 'Comfortaa', 'Quicksand', sans-serif; color: white; font-weight: bold; font-size: 24px; background: #4299e1; border-radius: 12px; padding: 3px 8px;")
-                        day_label.setFixedHeight(25)  # 日にちの高さを固定
-                        day_layout.addWidget(day_label)
-                        
-                        # 個人予定表示
-                        personal_event = self.personal_events.get((self.current_date.year, self.current_date.month, day))
-                        if personal_event:
-                            if isinstance(personal_event, list) and len(personal_event) > 0:
-                                event_name = personal_event[0].get('title', '予定') if isinstance(personal_event[0], dict) else str(personal_event[0])
-                            else:
-                                event_name = str(personal_event)
-                            
-                            # 個人予定は白色で統一（誕生日含む）
-                            event_color = 'white'  # 個人予定は白色
-                            
-                            event_label = QLabel(event_name)
-                            event_label.setStyleSheet("font-family: 'Quicksand', 'Noto Sans JP', sans-serif; color: white; font-size: 12px; font-weight: bold; margin-top: 5px;")
-                            event_label.setAlignment(Qt.AlignCenter)
-                            event_label.setWordWrap(True)
-                            event_label.setFixedHeight(20)
-                            day_layout.addWidget(event_label)
-                    elif is_holiday:  # 祝日
+                    elif is_holiday:
                         day_widget.setObjectName("calendar_day_holiday")
                         day_label.setStyleSheet("font-family: 'Comfortaa', 'Quicksand', sans-serif; color: #ff7675; font-weight: bold; font-size: 24px;")
-                        day_label.setFixedHeight(25)  # 日にちの高さを固定
-                        day_layout.addWidget(day_label)
-                        
-                        # Logic分離統一: CalendarLogicクラスで祝日名取得
-                        holiday_name = self.calendar_logic.get_holiday_name(self.current_date.year, self.current_date.month, day)
-                        if holiday_name:
-                            holiday_label = QLabel(holiday_name)
-                            holiday_label.setStyleSheet("font-family: 'Quicksand', 'Noto Sans JP', sans-serif; color: #ff7675; font-size: 12px; font-weight: bold; margin-top: 5px;")
-                            holiday_label.setAlignment(Qt.AlignCenter)
-                            holiday_label.setWordWrap(True)
-                            holiday_label.setFixedHeight(20)
-                            day_layout.addWidget(holiday_label)
-                    elif day_num == 0:  # 日曜日
+                    elif day_num == 0:
                         day_widget.setObjectName("calendar_day_sunday")
                         day_label.setStyleSheet("font-family: 'Comfortaa', 'Quicksand', sans-serif; color: #ff7675; font-weight: bold; font-size: 24px;")
-                        day_label.setFixedHeight(25)  # 日にちの高さを固定
-                        day_layout.addWidget(day_label)
-                        
-                        # 個人予定表示
-                        personal_event = self.personal_events.get((self.current_date.year, self.current_date.month, day))
-                        if personal_event:
-                            if isinstance(personal_event, list) and len(personal_event) > 0:
-                                event_name = personal_event[0].get('title', '予定') if isinstance(personal_event[0], dict) else str(personal_event[0])
-                            else:
-                                event_name = str(personal_event)
-                            # 個人予定は白色で統一（誕生日含む）
-                            event_color = 'white'  # 個人予定は白色
-                            
-                            event_label = QLabel(event_name)
-                            event_label.setStyleSheet("font-family: 'Quicksand', 'Noto Sans JP', sans-serif; color: white; font-size: 12px; font-weight: bold; margin-top: 5px;")
-                            event_label.setAlignment(Qt.AlignCenter)
-                            event_label.setWordWrap(True)
-                            event_label.setFixedHeight(20)
-                            day_layout.addWidget(event_label)
-                    elif day_num == 6:  # 土曜日
+                    elif day_num == 6:
                         day_widget.setObjectName("calendar_day_saturday")
                         day_label.setStyleSheet("font-family: 'Comfortaa', 'Quicksand', sans-serif; color: #74b9ff; font-weight: bold; font-size: 24px;")
-                        day_label.setFixedHeight(25)  # 日にちの高さを固定
-                        day_layout.addWidget(day_label)
-                        
-                        # 個人予定表示
-                        personal_event = self.personal_events.get((self.current_date.year, self.current_date.month, day))
-                        if personal_event:
-                            if isinstance(personal_event, list) and len(personal_event) > 0:
-                                event_name = personal_event[0].get('title', '予定') if isinstance(personal_event[0], dict) else str(personal_event[0])
-                            else:
-                                event_name = str(personal_event)
-                            # 個人予定は白色で統一（誕生日含む）
-                            event_color = 'white'  # 個人予定は白色
-                            
-                            event_label = QLabel(event_name)
-                            event_label.setStyleSheet("font-family: 'Quicksand', 'Noto Sans JP', sans-serif; color: white; font-size: 12px; font-weight: bold; margin-top: 5px;")
-                            event_label.setAlignment(Qt.AlignCenter)
-                            event_label.setWordWrap(True)
-                            event_label.setFixedHeight(20)
-                            day_layout.addWidget(event_label)
                     else:
                         day_widget.setObjectName("calendar_day_normal")
                         day_label.setStyleSheet("font-family: 'Comfortaa', 'Quicksand', sans-serif; color: rgba(255, 255, 255, 0.9); font-size: 24px; font-weight: bold;")
-                        day_label.setFixedHeight(25)  # 日にちの高さを固定
-                        day_layout.addWidget(day_label)
-                        
-                        # 個人予定表示
-                        personal_event = self.personal_events.get((self.current_date.year, self.current_date.month, day))
-                        if personal_event:
-                            if isinstance(personal_event, list) and len(personal_event) > 0:
-                                event_name = personal_event[0].get('title', '予定') if isinstance(personal_event[0], dict) else str(personal_event[0])
-                            else:
-                                event_name = str(personal_event)
-                            event_label = QLabel(event_name)
-                            # 個人予定は白色で統一（誕生日含む）
-                            event_color = 'white'  # 個人予定は白色
-                            event_label.setStyleSheet("font-family: 'Quicksand', 'Noto Sans JP', sans-serif; color: white; font-size: 12px; font-weight: bold; margin-top: 5px;")
-                            event_label.setAlignment(Qt.AlignCenter)
-                            event_label.setWordWrap(True)
-                            event_label.setFixedHeight(20)
-                            day_layout.addWidget(event_label)
-                
+
+                    day_layout.addWidget(day_label)
+
+                    # 全予定取得 → 1件目を表示、2件以上なら「•」
+                    all_events = self._get_day_events(year, month, day)
+                    if all_events:
+                        first_ev = all_events[0]
+                        first_title = first_ev['title'] if isinstance(first_ev, dict) else str(first_ev)
+                        ev_color = '#ff7675' if (isinstance(first_ev, dict) and first_ev.get('is_holiday')) else 'white'
+                        ev_label = QLabel(first_title)
+                        ev_label.setStyleSheet(
+                            f"font-family: 'Quicksand', 'Noto Sans JP', sans-serif; "
+                            f"color: {ev_color}; font-size: 12px; font-weight: bold; margin-top: 5px;"
+                        )
+                        ev_label.setAlignment(Qt.AlignCenter)
+                        ev_label.setWordWrap(True)
+                        ev_label.setFixedHeight(20)
+                        day_layout.addWidget(ev_label)
+
+                        if len(all_events) > 1:
+                            dot_label = QLabel("•")
+                            dot_label.setStyleSheet(
+                                "color: rgba(255,255,255,0.55); font-size: 14px; font-weight: bold;"
+                            )
+                            dot_label.setAlignment(Qt.AlignCenter)
+                            dot_label.setFixedHeight(16)
+                            day_layout.addWidget(dot_label)
+
+                    day_widget.clicked.connect(self.show_day_popup)
+
                 self.grid_layout.addWidget(day_widget, week_num, day_num)
-        
-        # スタイル再適用
+
         self.setStyleSheet(self.styleSheet())
     
     def create_sensor_section(self, parent):
@@ -1649,7 +1771,7 @@ class WebExactDashboard(QMainWindow):
 
     def _get_day_summary(self, days_data, day_offset):
         """日別データのサマリー取得（Neutral版アイコン使用）"""
-        from datetime import datetime, timedelta
+        from datetime import timedelta
         target_date = (datetime.now() + timedelta(days=day_offset)).strftime('%Y-%m-%d')
         
         day_forecasts = days_data.get(target_date, [])
@@ -1768,17 +1890,6 @@ class WebExactDashboard(QMainWindow):
         except Exception as e:
             self.logger.error(f"詳細ページ更新エラー: {e}")
 
-    def _group_forecasts_by_day(self, forecast_list):
-        """40予報データを日別にグループ化"""
-        days_data = {}
-        for item in forecast_list:
-            date_key = item.get('date', '').split(' ')[0]
-            if date_key not in days_data:
-                days_data[date_key] = []
-            days_data[date_key].append(item)
-        return days_data
-
-    
     def update_time(self):
         """時刻表示更新（効率化：天気更新は別スケジュール）"""
         now = datetime.now()
@@ -1949,7 +2060,7 @@ class WebExactDashboard(QMainWindow):
     def update_holiday_data(self, api_data):
         """カレンダーAPIデータ更新 - Logic分離統一"""
         # Logic分離統一: CalendarLogicクラスに処理を委譲
-        holidays_count = self.calendar_logic.update_holiday_data(api_data, self.current_date)
+        self.calendar_logic.update_holiday_data(api_data, self.current_date)
         
         # Logic分離統一: 個人予定データをUIに反映（元の動作を復元）
         if api_data and 'data' in api_data:
