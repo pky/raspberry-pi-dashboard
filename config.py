@@ -6,14 +6,17 @@ pydantic-settings で .env を読み込み、起動時に必須値の存在を�
 """
 
 import sys
+from pathlib import Path
 from typing import List
 from pydantic import Field, computed_field
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
+_ENV_FILE = Path(__file__).parent / '.env'
+
 
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(
-        env_file='.env',
+        env_file=str(_ENV_FILE),
         env_file_encoding='utf-8',
         extra='ignore',
         populate_by_name=True,
