@@ -8,7 +8,7 @@ import json
 import logging
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
-from typing import List, Dict
+from typing import List, Dict, Optional
 
 try:
     from google.auth.transport.requests import Request
@@ -152,12 +152,12 @@ class GoogleCalendarService:
             logger.error(f"カレンダー '{calendar_id}' からのイベント取得エラー: {e}")
             return []
 
-    def get_personal_events(self, year: int, month: int) -> List[Dict]:
-        """指定月の個人予定を取得（複数カレンダー対応）"""
+    def get_personal_events(self, year: int, month: int) -> Optional[List[Dict]]:
+        """指定月の個人予定を取得（複数カレンダー対応）。エラー時は None を返す"""
         if not self.service:
             if not self.load_and_refresh_credentials():
                 logger.error("Google Calendar サービスが利用できません")
-                return []
+                return None
 
         try:
             # 月の範囲を計算
@@ -194,7 +194,7 @@ class GoogleCalendarService:
 
         except Exception as e:
             logger.error(f"個人予定取得エラー: {e}")
-            return []
+            return None
 
 def get_google_calendar_service() -> GoogleCalendarService:
     """Google Calendarサービスインスタンスを取得"""

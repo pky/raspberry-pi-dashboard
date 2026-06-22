@@ -7,11 +7,9 @@
 
 import json
 import logging
-from datetime import datetime, timedelta
+from datetime import datetime
 from pathlib import Path
 from typing import List, Dict, Any, Optional
-import copy
-from logging_system import get_logger
 
 logger = logging.getLogger(__name__)
 
@@ -188,18 +186,25 @@ class CalendarCachePriority:
             logger.error(f"期限切れキャッシュ読み込みエラー: {e}")
             return []
     
-    def _fetch_api_data_with_timeout(self, year: int, month: int, timeout_seconds: int = 5, monitor_mode: bool = False) -> Optional[Dict]:
+    def _fetch_api_data_with_timeout(self, year: int, month: int, timeout_seconds: int = 15, monitor_mode: bool = False) -> Optional[Dict]:
         """
-        タイムアウト付きでAPI データを取得
+        タイムアウト付きでGoogle Calendar APIから最新データを取得
         """
         import threading
-        import time
 
         result = {'data': None, 'completed': False}
 
         def api_call():
             try:
+                from personal_events_cache import get_personal_events_cache
                 from calendar_data import get_calendar_manager
+
+                personal_cache = get_personal_events_cache()
+                # キャッシュ有効期限を無視してAPIを直接呼び出す
+                # （load_events_with_auto_updateはキャッシュ有効中にAPIを呼ばないため
+                #   新しく追加した予定がキャッシュ期限まで反映されない問題を防ぐ）
+                personal_cache.update_cache_for_month(year, month)
+
                 manager = get_calendar_manager()
                 # キャッシュ優先システム内でのAPI呼び出しは標準モードを使用（無限ループ防止）
                 result['data'] = manager.get_month_events(year, month, use_cache_priority=False, monitor_mode=monitor_mode)
@@ -208,15 +213,15 @@ class CalendarCachePriority:
                 logger.error(f"API呼び出しエラー: {e}")
                 result['data'] = {'status': 'error', 'error': str(e)}
                 result['completed'] = True
-        
+
         # 別スレッドでAPI呼び出し実行
         thread = threading.Thread(target=api_call)
         thread.daemon = True
         thread.start()
-        
+
         # タイムアウト待機
         thread.join(timeout=timeout_seconds)
-        
+
         if result['completed']:
             return result['data']
         else:
@@ -345,6 +350,6 @@ if __name__ == "__main__":
     now = datetime.now()
     result = priority.get_calendar_with_cache_priority(now.year, now.month)
     
-    self.logger.success("キャッシュ優先表示テスト完了: {result['cache_priority_status']['display_source']}")
-    self.logger.info("個人予定: {result['google_events_count']}件")
-    self.logger.info("祝日: {result['holidays_count']}件")
+    logger.info(f"キャッシュ優先表示テスト完了: {result['cache_priority_status']['display_source']}")
+    logger.info(f"個人予定: {result['google_events_count']}件")
+    logger.info(f"祝日: {result['holidays_count']}件")

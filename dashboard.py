@@ -1853,6 +1853,12 @@ class WebExactDashboard(QMainWindow):
         self.weather_monitor_timer.start(300000)  # 5分 = 300,000ms
         self.logger.info("天気監視タイマー開始: 5分間隔でJSON更新チェック（バー＋詳細ページ）")
 
+        # カレンダー定期更新タイマー: 1時間ごとにGoogle Calendarから最新予定を取得
+        self.calendar_refresh_timer = QTimer()
+        self.calendar_refresh_timer.timeout.connect(self.load_calendar_data)
+        self.calendar_refresh_timer.start(60 * 60 * 1000)  # 1時間 = 3,600,000ms
+        self.logger.info("カレンダー定期更新タイマー開始: 1時間間隔")
+
     def update_all_weather_displays(self):
         """5分間隔統一更新: 天気バー＋詳細ページ（表示中の場合）"""
         try:
@@ -2066,12 +2072,16 @@ class WebExactDashboard(QMainWindow):
         if api_data and 'data' in api_data:
             calendar_data = api_data['data']
 
-            # 個人予定をpersonal_eventsに追加（実際のデータ構造に合わせて復元）
+            # 個人予定をpersonal_eventsに反映（追加・削除の両方に対応）
             if 'calendar_data' in calendar_data and 'days' in calendar_data['calendar_data']:
                 for day, day_data in calendar_data['calendar_data']['days'].items():
-                    if isinstance(day_data, dict) and day_data.get('events'):
+                    if isinstance(day_data, dict):
                         day_key = (self.current_date.year, self.current_date.month, int(day))
-                        self.personal_events[day_key] = day_data['events']
+                        events = day_data.get('events', [])
+                        if events:
+                            self.personal_events[day_key] = events
+                        elif day_key in self.personal_events:
+                            del self.personal_events[day_key]
         
         # UIの状態更新のみdashboardで処理
         self.api_loading = False
@@ -2194,6 +2204,8 @@ class WebExactDashboard(QMainWindow):
             if hasattr(self, 'time_timer') and self.time_timer:
                 self.time_timer.stop()
                 self.logger.info("タイマー停止完了")
+            if hasattr(self, 'calendar_refresh_timer') and self.calendar_refresh_timer:
+                self.calendar_refresh_timer.stop()
             
             # センサースレッド停止
             if hasattr(self, 'sensor_thread') and self.sensor_thread:

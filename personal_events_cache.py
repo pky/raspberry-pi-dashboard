@@ -7,11 +7,9 @@ Google Calendar APIの頻繁なアクセスを避けて安定性を向上
 import json
 import logging
 import threading
-from datetime import datetime, timedelta
+from datetime import datetime
 from pathlib import Path
-from typing import List, Dict, Any, Optional
-import os
-from logging_system import get_logger
+from typing import List, Dict, Optional
 
 logger = logging.getLogger(__name__)
 
@@ -146,27 +144,25 @@ class PersonalEventsCache:
             # refresh_token自動更新で個人予定を取得
             events = service.get_personal_events(year, month)
 
-            if not events:
-                # 0件の場合、既存キャッシュにデータがあれば上書きしない
-                # （ネットワーク未確立・API一時エラー・競合等による誤った空キャッシュ保存を防ぐ）
+            if events is None:
+                # None = APIエラー（認証失敗・ネットワーク障害等）→ 既存キャッシュを維持
                 cache_file = self.get_cache_file_path(year, month)
                 if cache_file.exists():
                     try:
                         with open(cache_file, 'r', encoding='utf-8') as f:
                             existing = json.load(f)
                         if existing.get('events_count', 0) > 0:
-                            # cached_atを更新してキャッシュを有効状態に保つ
-                            # （更新しないとload_events()が期限切れと判断して[]を返してしまう）
                             existing['cached_at'] = datetime.now().isoformat()
                             with open(cache_file, 'w', encoding='utf-8') as f:
                                 json.dump(existing, f, indent=2, ensure_ascii=False)
-                            logger.warning(f"API取得結果が0件のため既存キャッシュを維持（cached_at更新）: {year}年{month}月 ({existing['events_count']}件保持)")
+                            logger.warning(f"APIエラーのため既存キャッシュを維持（cached_at更新）: {year}年{month}月 ({existing['events_count']}件保持)")
                             return True
                     except Exception:
                         pass
-                events = []
-                logger.info(f"個人予定なし（空配列をキャッシュ保存）: {year}年{month}月")
+                logger.warning(f"APIエラー・既存キャッシュなし: {year}年{month}月")
+                return False
             else:
+                # [] = 正常に0件（ユーザーが削除した等）→ そのままキャッシュ保存
                 logger.info(f"個人予定をAPIから取得してキャッシュ更新: {year}年{month}月 - {len(events)}件")
 
             return self.save_events(year, month, events)
